@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Shavit — your cool friend</title>
+  <meta name="description" content="Your device-only wardrobe. Try clothing combinations on a stick figure.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2212%22%20fill%3D%22%23fffefb%22%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23292824%22%20stroke-width%3D%223.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M30%2057C15%2057%207%2046%208%2032C6%2018%2016%208%2029%207C44%205%2056%2017%2056%2031C58%2047%2046%2058%2030%2057Z%22%2F%3E%3Cpath%20d%3D%22M23%2027L23%2030M41%2026L42%2029M22%2039Q32%2049%2044%2037%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/shavit-180.png">
+  <meta name="theme-color" content="#fffefb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Shavit">
+  <link rel="stylesheet" href="style.css"><script type="module" src="app.js"></script>
+</head>
+<body>
+  <main id="outfit-view" aria-label="Shavit’s outfit">
+    <button id="random-outfit" class="dice-button" aria-label="Pick a random outfit for Shavit" title="Random outfit"><svg viewBox="0 0 52 52" aria-hidden="true"><path d="M7 5 L44 6 Q48 6 47 12 L48 43 Q47 48 41 47 L8 48 Q4 47 5 41 L4 11 Q4 5 7 5Z" fill="#fffefb" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/><g fill="currentColor"><circle cx="15" cy="15" r="3"/><circle cx="37" cy="15" r="3"/><circle cx="26" cy="26" r="3"/><circle cx="15" cy="37" r="3"/><circle cx="37" cy="37" r="3"/></g></svg></button>
+          <svg class="figure" viewBox="0 0 340 700" role="group" aria-label="Shavit. Click clothes to switch them. Click his face to change mood.">
+            <g id="face-target" class="face" tabindex="0" role="button" aria-label="Change mood: currently happy" fill="none" stroke="#292824" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M165 111 C143 111 131 97 132 79 C129 62 143 45 161 43 C183 39 205 57 205 76 C209 98 190 113 166 111" fill="#fffefb"/>
+              <path id="face-eyes" d="M151 73 L151 77 M181 71 L182 75" stroke-width="3.5"/>
+              <path id="face-mouth" d="M155 90 Q170 101 184 87" stroke-width="3.5"/>
+            </g>
+            <g id="shirt-target" tabindex="0" role="button" aria-label="Switch shirt" class="garment"><path id="shirt-color" d="M132 122 L111 132 L73 188 L103 212 L130 176 L132 218 L129 256 L168 256 L211 256 L208 211 L210 175 L236 213 L268 190 L230 131 L208 123 Q170 145 132 122Z" fill="#7598b0"/><image id="shirt-photo" x="71" y="121" width="198" height="134" preserveAspectRatio="xMidYMid meet"/><path d="M132 122 L111 132 L73 188 L103 212 L130 176 L132 218 L129 256 L168 256 L211 256 L208 211 L210 175 L236 213 L268 190 L230 131 L208 123 Q170 145 132 122Z" fill="none" stroke="#292824" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></g>
+            <g id="pants-target" tabindex="0" role="button" aria-label="Switch pants" class="garment"><path id="pants-color" d="M130 256 L170 256 L210 256 L214 301 L218 349 L223 424 L185 424 L177 354 L169 301 L162 354 L155 424 L118 424 L124 347Z" fill="#333a3e"/><image id="pants-photo" x="118" y="255" width="104" height="153" preserveAspectRatio="xMidYMid meet"/><path d="M130 256 L170 256 L210 256 L214 301 L218 349 L223 424 L185 424 L177 354 L169 301 L162 354 L155 424 L118 424 L124 347Z M133 266 H208 M170 266 V299" fill="none" stroke="#292824" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></g>
+            <g id="shoes-target" class="garment" tabindex="0" role="button" aria-label="Switch shoes">
+              <rect x="104" y="417" width="132" height="38" fill="transparent"/>
+              <path id="shoes-color" d="M122 424 L143 426 L147 442 L111 447 L106 441Z M197 426 L215 424 L234 438 L233 446 L196 443Z" fill="#e6d8bd"/>
+              <image id="shoes-photo" x="104" y="417" width="132" height="38" preserveAspectRatio="xMidYMid meet"/>
+              <image id="shoes-photo-right" x="108" y="420" width="52" height="45" preserveAspectRatio="xMidYMin meet" transform="translate(340 0) scale(-1 1)" style="display:none"/>
+              <path d="M122 424 L143 426 L147 442 L111 447 L106 441Z M197 426 L215 424 L234 438 L233 446 L196 443Z M109 442 L144 440 M199 439 L232 442 M125 433 L137 432 M206 432 L216 433" fill="none" stroke="#292824" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            </g>
+            <g id="jacket-target" class="garment" tabindex="0" role="button" aria-label="Switch jacket" transform="translate(230 0)">
+              <path id="jacket-color" d="M131 119 L108 132 L67 199 L94 217 L130 169 L125 261 L148 259 L150 145Z M209 119 L232 132 L274 199 L246 217 L210 169 L214 261 L192 259 L190 145Z" fill="#799777"/>
+              <image id="jacket-photo" x="66" y="116" width="208" height="148" preserveAspectRatio="xMidYMid meet" style="pointer-events:none"/>
+              <path d="M131 119 L108 132 L67 199 L94 217 L130 169 L125 261 L148 259 L150 145Z M209 119 L232 132 L274 199 L246 217 L210 169 L214 261 L192 259 L190 145Z M133 123 L151 147 L138 154 M207 123 L189 147 L202 154" fill="none" stroke="#292824" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            </g>
+          </svg>
+    <button class="layer-button" id="toggle-jacket" aria-pressed="false">Jacket / outer layer</button>
+    <button class="primary add-button" id="add-top">Add clothes</button>
+    <button class="layer-button" id="open-wardrobe">Wardrobe</button>
+  </main>
+  <section id="wardrobe-view" class="wardrobe-view" aria-label="Your wardrobe" hidden>
+    <div class="wardrobe-heading"><h1>Your wardrobe</h1><button class="layer-button" id="back-to-outfit">Back to Shavit</button></div>
+    <div class="wardrobe-tabs" role="group" aria-label="Clothing category">
+      <button class="layer-button" data-category="all" aria-pressed="true">All</button>
+      <button class="layer-button" data-category="shirt" aria-pressed="false">Shirts</button>
+      <button class="layer-button" data-category="pants" aria-pressed="false">Pants</button>
+      <button class="layer-button" data-category="shoes" aria-pressed="false">Shoes</button>
+      <button class="layer-button" data-category="jacket" aria-pressed="false">Jackets</button>
+    </div>
+    <div id="wardrobe-grid" class="wardrobe-grid"></div>
+    <button class="primary" id="wardrobe-add">Add clothes</button><div class="backup-actions"><button class="layer-button" id="export-wardrobe">Export wardrobe</button><button class="layer-button" id="import-wardrobe">Import wardrobe</button></div><input type="file" id="wardrobe-backup" accept="application/json,.json" hidden>
+  </section>
+  <dialog id="upload-dialog"><form id="upload-form"><div class="dialog-heading"><h2>Add a piece</h2><button type="button" id="close-dialog" class="icon-button" aria-label="Close">×</button></div><p>Pick a photo. Its background will be removed on your device.</p><label class="upload-area" for="photo"><span id="upload-preview">＋<br><strong>Choose a clothing photo</strong><small>JPG, PNG or WebP · up to 15 MB</small></span><img id="photo-preview" hidden alt="Selected clothing photo"><span id="shoe-preview" class="shoe-preview" hidden><img id="shoe-preview-left" alt="First separated shoe"><img id="shoe-preview-right" alt="Second separated shoe"></span></label><button type="button" class="layer-button" id="original-toggle" hidden>Use original photo (keep background)</button><input id="photo" type="file" accept="image/jpeg,image/png,image/webp" required><label for="piece-name">Name</label><input id="piece-name" maxlength="60" placeholder="e.g. Blue everyday tee" required><label for="category">Category</label><select id="category"><option value="shirt">Shirt</option><option value="pants">Pants</option><option value="shoes">Shoes</option><option value="jacket">Jacket</option></select><div id="shoe-mode-field" hidden><label for="shoe-mode">Photo shows</label><select id="shoe-mode"><option value="single">One shoe</option><option value="pair">A pair of shoes</option></select></div><div id="shoe-preview-controls" hidden><button type="button" class="layer-button" data-shoe-edit="0" data-action="rotate">Rotate left shoe</button><button type="button" class="layer-button" data-shoe-edit="0" data-action="flip">Flip left shoe</button><button type="button" class="layer-button" data-shoe-edit="1" data-action="rotate">Rotate right shoe</button><button type="button" class="layer-button" data-shoe-edit="1" data-action="flip">Flip right shoe</button></div><p class="form-error" id="form-error" role="alert"></p><button class="primary" id="save-piece" type="submit">Add to wardrobe</button></form></dialog>
+  <dialog id="rename-dialog"><form id="rename-form"><div class="dialog-heading"><h2>Change name</h2><button type="button" class="icon-button" id="close-rename" aria-label="Close rename">×</button></div><label for="rename-name">Name</label><input id="rename-name" maxlength="60" required><p id="rename-error" class="form-error" role="alert"></p><button class="primary" type="submit" id="save-name">Save name</button></form></dialog>
+  <div id="toast" role="status" aria-live="polite"></div>
+</body></html>
