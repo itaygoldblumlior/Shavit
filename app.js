@@ -1,3 +1,4 @@
+import { randomOutfit } from './random-outfit.js';
 import { removeBackground } from '@imgly/background-removal';
 import { garmentLayout, fitGarment } from './garment-layout.js';
 import { shoeRegions } from './shoe-regions.js';
@@ -14,23 +15,35 @@ let db, clothes = [], selected = {shirt:null,pants:null,shoes:null,jacket:'no-ja
 let lastJacket = null;
 let previewVersion=0,previewBusy=false,originalPhoto=null,cutoutPhoto=null,usingOriginal=false,draftShoePhotos=null;
 let wardrobeCategory = 'all';
+let savedFits = [];
+const outfitCategories=['shirt','pants','shoes','jacket'];
+function readPreference(key,fallback){try{return JSON.parse(localStorage.getItem(key))||fallback;}catch{return fallback;}}
+function writePreference(key,value){localStorage.setItem(key,JSON.stringify(value));}
+function shuffleOutfit(previous=selected){
+  const choices=Object.fromEntries(outfitCategories.map(category=>{const owned=clothes.filter(item=>item.category===category);return [category,owned.length?(category==='jacket'?[...owned,demos.jacket[2]]:owned):category==='jacket'?[demos.jacket[2]]:[current(category)]];}));
+  selected=randomOutfit(choices,previous);
+}
+function fitKey(fit){return JSON.stringify(outfitCategories.map(category=>fit[category]));}
+function savedIndex(){return savedFits.findIndex(fit=>fitKey(fit)===fitKey(selected));}
+function updateBookmark(){const saved=savedIndex()>=0;$('save-outfit').setAttribute('aria-pressed',String(saved));$('save-outfit').setAttribute('aria-label',saved?'Unsave outfit':'Save outfit');}
 const fitCache = new Map();
 const dialog = $('upload-dialog');
 let toastTimer;
 function toast(message){ $('toast').textContent = message; $('toast').classList.add('visible'); clearTimeout(toastTimer); toastTimer = setTimeout(()=>$('toast').classList.remove('visible'),4500); }
 function transaction(mode, action){return new Promise((resolve,reject)=>{const tx = db.transaction('clothes',mode);const request=action(tx.objectStore('clothes'));tx.oncomplete=()=>resolve(request?.result);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);});}
 async function init(){
-  try {db = await new Promise((resolve,reject)=>{const request=indexedDB.open('daily-wardrobe',1); request.onupgradeneeded=()=>request.result.createObjectStore('clothes',{keyPath:'id'}); request.onsuccess=()=>resolve(request.result); request.onerror=()=>reject(request.error);}); clothes = await transaction('readonly',s=>s.getAll()); render();}
+  try {db = await new Promise((resolve,reject)=>{const request=indexedDB.open('daily-wardrobe',1); request.onupgradeneeded=()=>request.result.createObjectStore('clothes',{keyPath:'id'}); request.onsuccess=()=>resolve(request.result); request.onerror=()=>reject(request.error);}); clothes = await transaction('readonly',s=>s.getAll()); savedFits=readPreference('shavit-saved-fits',[]);if(!Array.isArray(savedFits))savedFits=[];savedFits=savedFits.filter(fit=>fit&&outfitCategories.every(category=>options(category).some(item=>item.id===fit[category])));shuffleOutfit(readPreference('shavit-last-outfit',{})); await render();document.body.classList.add('wardrobe-ready');$('random-outfit').disabled=false;$('save-outfit').disabled=false;}
   catch {toast('Your browser could not open storage. Try a regular browser window.'); $('add-top').disabled=true;}
 }
 function options(category){const own=clothes.filter(c=>c.category===category);return own.length?(category==='jacket'?[...own,demos.jacket[2]]:own):demos[category];}
 function current(category){const list=options(category);return list.find(c=>c.id===selected[category])||list[0];}
 function render(){
+  const pending=[];
   for(const category of ['shirt','pants','shoes','jacket']){
     const item=current(category); selected[category]=item.id; const image=$(category+'-photo');
     if(category==='shirt'||category==='pants')$(category+'-target').setAttribute('transform',item.photo?'':category==='shirt'?'translate(170 150) scale(1.15) translate(-170 -122)':'translate(170 365) scale(1.5 1.05) translate(-170 -256)');
     if(category==='shoes')$('shoes-photo-right').style.display='none';
-    if(item.photo){image.setAttribute('href',item.photo);image.removeAttribute('clip-path');image.setAttribute('preserveAspectRatio','xMidYMid meet');for(const [key,value] of Object.entries(garmentLayout[category]))image.setAttribute(key,value);image.style.display='';alignPhoto(item,image);}
+    if(item.photo){image.setAttribute('href',item.photo);image.removeAttribute('clip-path');image.setAttribute('preserveAspectRatio','xMidYMid meet');for(const [key,value] of Object.entries(garmentLayout[category]))image.setAttribute(key,value);image.style.display='';pending.push(alignPhoto(item,image));}
     else {image.removeAttribute('href');image.style.display='none';}
     $(category+'-color').style.display=item.photo&&category!=='jacket'?'none':'';
     $(category+'-color').setAttribute('fill',item.photo&&category==='jacket'?'transparent':item.color||'#c1cab5');
@@ -44,8 +57,11 @@ function render(){
   const figure=document.querySelector('.figure');
   figure.setAttribute('viewBox','0 0 340 700');
   requestAnimationFrame(positionJacket);
-  positionShoes();
+  pending.push(positionShoes());
   renderWardrobe();
+  updateBookmark();
+  try{writePreference('shavit-last-outfit',selected);}catch{}
+  return Promise.all(pending);
 }
 
 function positionJacket(){
@@ -53,12 +69,15 @@ function positionJacket(){
   const rect=figure.getBoundingClientRect();
   if(!rect.width||!rect.height)return;
   const figureScale=Math.min(rect.width/340,rect.height/700);
-  const jacketLeft=280;
+  const jacketLeft=270;
   const screenLeft=rect.left+rect.width/2+(jacketLeft-170)*figureScale;
   const availableWidth=Math.max(32,(window.innerWidth-18-screenLeft)/figureScale);
-  const jacketScale=Math.min(1,availableWidth/208);
+  const jacketScale=Math.min(1.35,availableWidth/140);
+  const photo=Boolean(current('jacket').photo);
+  const horizontalScale=photo?jacketScale:Math.min(1.35,availableWidth/208);
+  const sourceTop=photo?150:119;
   // Move and size the outer layer independently; the face and outfit never shift.
-  $('jacket-target').setAttribute('transform',`translate(${jacketLeft-66*jacketScale} ${150-119*jacketScale}) scale(${jacketScale})`);
+  $('jacket-target').setAttribute('transform',`translate(${jacketLeft-66*horizontalScale} ${150-sourceTop*jacketScale}) scale(${horizontalScale} ${jacketScale})`);
 }
 window.addEventListener('resize',positionJacket);
 
@@ -75,7 +94,7 @@ async function alignPhoto(item, element){
       const right=$('shoes-photo-right');right.style.display='';
       element.setAttribute('href',anchor?.shoes?.[0]||anchor?.photo||item.photo);
       right.setAttribute('href',anchor?.shoes?.[1]||anchor?.photo||item.photo);
-      positionShoes();
+      await positionShoes();
       return;
     }
     for(const [key,value] of Object.entries(fitGarment(item.category,anchor)))element.setAttribute(key,value);
@@ -161,6 +180,7 @@ async function positionShoes(){
 const categoryNames = {shirt:'Shirts',pants:'Pants',shoes:'Shoes',jacket:'Jackets'};
 function renderWardrobe(){
   const grid=$('wardrobe-grid');grid.replaceChildren();
+  if(wardrobeCategory==='saved'){renderSavedFits(grid);return;}
   const visible=clothes.filter(item=>wardrobeCategory==='all'||item.category===wardrobeCategory);
   if(!visible.length){const empty=document.createElement('p');empty.className='wardrobe-empty';empty.textContent=wardrobeCategory==='all'?'No clothes added yet. Add your first piece!':`No ${categoryNames[wardrobeCategory].toLowerCase()} added yet.`;grid.append(empty);return;}
   for(const item of visible){
@@ -208,18 +228,34 @@ $('wardrobe-backup').onchange=async()=>{
 $('random-outfit').onclick=()=>{
   moodIndex=(moodIndex+1+Math.floor(Math.random()*(moods.length-1)))%moods.length;
   renderMood();
-  if(!clothes.length){toast('Add clothes to give Shavit a random outfit.');return;}
-  for(const category of ['shirt','pants','shoes','jacket']){
-    const owned=clothes.filter(item=>item.category===category);
-    if(!owned.length)continue;
-    const choices=category==='jacket'?[...owned,demos.jacket[2]]:owned;
-    selected[category]=choices[Math.floor(Math.random()*choices.length)].id;
-  }
+  const previous=fitKey(selected);
+  shuffleOutfit();
   render();
   const dice=$('random-outfit');dice.classList.remove('rolling');
   requestAnimationFrame(()=>dice.classList.add('rolling'));
-  toast('A new outfit and mood for Shavit.');
+  toast(previous===fitKey(selected)?'New mood! Add more clothes for more outfit combinations.':'A new outfit and mood for Shavit.');
 };
+
+$('save-outfit').onclick=()=>{
+  const index=savedIndex();
+  const next=index>=0?savedFits.filter((_,i)=>i!==index):[...savedFits,{...selected}];
+  try{writePreference('shavit-saved-fits',next);savedFits=next;updateBookmark();renderWardrobe();toast(index>=0?'Outfit unsaved.':'Outfit saved. Find it in Wardrobe → Saved fits.');}
+  catch{toast('Could not save this outfit. Check your device storage.');}
+};
+function renderSavedFits(grid){
+  const valid=savedFits.filter(fit=>outfitCategories.every(category=>options(category).some(item=>item.id===fit[category])));
+  if(!valid.length){const empty=document.createElement('p');empty.className='wardrobe-empty';empty.textContent='Tap the bookmark next to Shavit to save a fit.';grid.append(empty);return;}
+  for(const fit of valid){
+    const card=document.createElement('article');card.className='wardrobe-piece saved-fit';
+    const wear=document.createElement('button');wear.className='piece-wear';wear.setAttribute('aria-label','Wear saved outfit');
+    const preview=document.createElement('div');preview.className='saved-fit-preview';
+    for(const category of outfitCategories){const item=options(category).find(item=>item.id===fit[category]);if(item.none)continue;const piece=document.createElement(item.photo?'img':'span');if(item.photo){piece.src=item.photo;piece.alt=item.name;}else{piece.textContent=item.name;}preview.append(piece);}
+    const label=document.createElement('strong');label.textContent='Wear this fit';wear.append(preview,label);wear.onclick=()=>{selected={...fit};render();showOutfit();};
+    const remove=document.createElement('button');remove.className='layer-button';remove.textContent='Unsave';remove.onclick=()=>{const next=savedFits.filter(item=>fitKey(item)!==fitKey(fit));try{writePreference('shavit-saved-fits',next);savedFits=next;renderWardrobe();updateBookmark();}catch{toast('Could not unsave this outfit.');}};
+    card.append(wear,remove);grid.append(card);
+  }
+}
+
 $('random-outfit').addEventListener('animationend',()=>$('random-outfit').classList.remove('rolling'));
 let renameItemId=null;
 function closeItemMenus(){document.querySelectorAll('.piece-menu').forEach(menu=>menu.hidden=true);document.querySelectorAll('.piece-more').forEach(button=>button.setAttribute('aria-expanded','false'));}

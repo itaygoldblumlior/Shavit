@@ -3,7 +3,7 @@ export const garmentLayout = {
   shirt: {x:50,y:150,width:240,height:180},
   pants: {x:60,y:365,width:220,height:185},
   shoes: {x:105,y:590,width:55,height:80},
-  jacket: {x:66,y:150,width:208,height:180}
+  jacket: {x:66,y:150,width:140,height:240}
 };
 export function fitGarment(category, anchor) {
   const box={...garmentLayout[category]};
