@@ -13,8 +13,15 @@ const demos = {
 };
 let db, clothes = [], selected = {shirt:null,pants:null,shoes:null,jacket:'no-jacket'}, processedPhoto = null, processing = false, photoVersion = 0;
 let lastJacket = null;
+let fullCutoutPhoto=null;
+let cutoutEditor=null;
 let previewVersion=0,previewBusy=false,originalPhoto=null,cutoutPhoto=null,usingOriginal=false,draftShoePhotos=null;
 let wardrobeCategory = 'all';
+let wardrobeQuery='';
+const outfitHistory=[];
+function rememberOutfit(){outfitHistory.push({selected:{...selected},moodIndex});if(outfitHistory.length>30)outfitHistory.shift();$('undo-outfit').disabled=false;}
+$('undo-outfit').onclick=()=>{const previous=outfitHistory.pop();if(!previous)return;selected=previous.selected;moodIndex=previous.moodIndex;renderMood();render();$('undo-outfit').disabled=!outfitHistory.length;};
+$('wardrobe-search').oninput=event=>{wardrobeQuery=event.target.value.trim().toLowerCase();renderWardrobe();};
 let savedFits = [];
 const outfitCategories=['shirt','pants','shoes','jacket'];
 function readPreference(key,fallback){try{return JSON.parse(localStorage.getItem(key))||fallback;}catch{return fallback;}}
@@ -25,14 +32,14 @@ function shuffleOutfit(previous=selected){
 }
 function fitKey(fit){return JSON.stringify(outfitCategories.map(category=>fit[category]));}
 function savedIndex(){return savedFits.findIndex(fit=>fitKey(fit)===fitKey(selected));}
-function updateBookmark(){const saved=savedIndex()>=0;$('save-outfit').setAttribute('aria-pressed',String(saved));$('save-outfit').setAttribute('aria-label',saved?'Unsave outfit':'Save outfit');}
+function updateBookmark(){const saved=savedIndex()>=0;$('save-outfit').setAttribute('aria-pressed',String(saved));$('save-outfit').setAttribute('aria-label',saved?'Unsave outfit':'Save outfit');$('save-outfit').querySelector('span').textContent=saved?'Saved':'Save fit';}
 const fitCache = new Map();
 const dialog = $('upload-dialog');
 let toastTimer;
 function toast(message){ $('toast').textContent = message; $('toast').classList.add('visible'); clearTimeout(toastTimer); toastTimer = setTimeout(()=>$('toast').classList.remove('visible'),4500); }
 function transaction(mode, action){return new Promise((resolve,reject)=>{const tx = db.transaction('clothes',mode);const request=action(tx.objectStore('clothes'));tx.oncomplete=()=>resolve(request?.result);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);});}
 async function init(){
-  try {db = await new Promise((resolve,reject)=>{const request=indexedDB.open('daily-wardrobe',1); request.onupgradeneeded=()=>request.result.createObjectStore('clothes',{keyPath:'id'}); request.onsuccess=()=>resolve(request.result); request.onerror=()=>reject(request.error);}); clothes = await transaction('readonly',s=>s.getAll()); savedFits=readPreference('shavit-saved-fits',[]);if(!Array.isArray(savedFits))savedFits=[];savedFits=savedFits.filter(fit=>fit&&outfitCategories.every(category=>options(category).some(item=>item.id===fit[category])));shuffleOutfit(readPreference('shavit-last-outfit',{})); await render();document.body.classList.add('wardrobe-ready');$('random-outfit').disabled=false;$('save-outfit').disabled=false;}
+  try {db = await new Promise((resolve,reject)=>{const request=indexedDB.open('daily-wardrobe',1); request.onupgradeneeded=()=>request.result.createObjectStore('clothes',{keyPath:'id'}); request.onsuccess=()=>resolve(request.result); request.onerror=()=>reject(request.error);}); clothes = await transaction('readonly',s=>s.getAll()); savedFits=readPreference('shavit-saved-fits',[]);if(!Array.isArray(savedFits))savedFits=[];savedFits=savedFits.filter(fit=>fit&&outfitCategories.every(category=>options(category).some(item=>item.id===fit[category])));shuffleOutfit(readPreference('shavit-last-outfit',{})); await render();document.body.classList.add('wardrobe-ready');$('random-outfit').disabled=false;$('save-outfit').disabled=false;if(!clothes.length&&!readPreference('shavit-welcomed',false))showWelcome();}
   catch {toast('Your browser could not open storage. Try a regular browser window.'); $('add-top').disabled=true;}
 }
 function options(category){const own=clothes.filter(c=>c.category===category);return own.length?(category==='jacket'?[...own,demos.jacket[2]]:own):demos[category];}
@@ -181,15 +188,15 @@ const categoryNames = {shirt:'Shirts',pants:'Pants',shoes:'Shoes',jacket:'Jacket
 function renderWardrobe(){
   const grid=$('wardrobe-grid');grid.replaceChildren();
   if(wardrobeCategory==='saved'){renderSavedFits(grid);return;}
-  const visible=clothes.filter(item=>wardrobeCategory==='all'||item.category===wardrobeCategory);
-  if(!visible.length){const empty=document.createElement('p');empty.className='wardrobe-empty';empty.textContent=wardrobeCategory==='all'?'No clothes added yet. Add your first piece!':`No ${categoryNames[wardrobeCategory].toLowerCase()} added yet.`;grid.append(empty);return;}
+  const visible=clothes.filter(item=>(wardrobeCategory==='all'||item.category===wardrobeCategory)&&item.name.toLowerCase().includes(wardrobeQuery));
+  if(!visible.length){const empty=document.createElement('p');empty.className='wardrobe-empty';empty.textContent=wardrobeQuery?'No matches. Try a different name.':wardrobeCategory==='all'?'No clothes added yet. Add your first piece!':`No ${categoryNames[wardrobeCategory].toLowerCase()} added yet.`;grid.append(empty);return;}
   for(const item of visible){
     const card=document.createElement('article');card.className='wardrobe-piece';
     const button=document.createElement('button');button.className='piece-wear';button.setAttribute('aria-label',`Wear ${item.name}`);button.setAttribute('aria-pressed',String(selected[item.category]===item.id));card.classList.toggle('is-worn',selected[item.category]===item.id);
     const photo=document.createElement('img');photo.src=item.photo;photo.alt=item.name;photo.loading='lazy';
     const name=document.createElement('strong');name.textContent=item.name;
     const category=document.createElement('span');category.textContent=categoryNames[item.category];
-    button.append(photo,name,category);button.onclick=()=>{selected[item.category]=item.id;render();showOutfit();};
+    button.append(photo,name,category);button.onclick=()=>{rememberOutfit();selected[item.category]=item.id;render();showOutfit();};
     const more=document.createElement('button');more.className='piece-more';more.textContent='⋯';more.setAttribute('aria-label',`Options for ${item.name}`);more.setAttribute('aria-expanded','false');
     const menu=document.createElement('div');menu.className='piece-menu';menu.hidden=true;
     const rename=document.createElement('button');rename.textContent='Change name';rename.onclick=()=>{closeItemMenus();renameItemId=item.id;$('rename-name').value=item.name;$('rename-error').textContent='';$('rename-dialog').showModal();$('rename-name').select();};
@@ -202,13 +209,34 @@ function renderWardrobe(){
     card.append(button,more,menu);grid.append(card);
   }
 }
-function showOutfit(){$('wardrobe-view').hidden=true;$('outfit-view').hidden=false;$('open-wardrobe').focus();requestAnimationFrame(positionJacket);}
+
+const tutorialSteps=[
+ {title:'Say hello to Shavit',description:'Tap his face to change his mood. He’s your little getting-ready buddy.',art:'<path d="M30 55C13 55 7 44 8 29C6 14 17 6 30 7C45 5 56 17 55 31C57 48 45 57 30 55Z"/><path d="M23 25V29M41 24V28M22 38Q32 48 44 36"/>'},
+ {title:'Start with your clothes',description:'Tap Add clothes, choose a category, then pick a photo. Shavit removes the background on your device. Use Fix cutout if anything needs an erase or a restore.',art:'<path d="M10 12H50V51H10Z"/><path d="M30 22V42M20 32H40"/>'},
+ {title:'Tap to try something else',description:'Tap a shirt, pants, or shoes to switch to another piece. Use Jacket / outer layer to add a jacket beside your shirt.',art:'<path d="M23 10L11 16L4 30L16 35L20 28V54H45V28L50 35L61 29L53 16L42 10Q32 19 23 10Z"/>'},
+ {title:'Let the dice decide',description:'Tap Shuffle for a random outfit and mood. It avoids repeating the outfit showing when other combinations are available. Undo brings your previous look back.',art:'<path d="M8 7H55V55H8Z"/><circle cx="19" cy="19" r="2"/><circle cx="43" cy="19" r="2"/><circle cx="31" cy="31" r="2"/><circle cx="19" cy="43" r="2"/><circle cx="43" cy="43" r="2"/>'},
+ {title:'Keep a fit you love',description:'Tap the bookmark to save this outfit. Tap it again to unsave. Find your favourites in Wardrobe → Saved fits.',art:'<path d="M17 7H47V56L32 44L17 56Z"/>'},
+ {title:'Your wardrobe, your device',description:'Search your clothes in Wardrobe. The three dots let you rename or remove a piece. Export a backup to keep your clothes and saved fits safe or move them to another phone.',art:'<path d="M26 16Q26 6 33 7Q42 8 38 16L32 22L6 43Q3 48 10 49H55Q61 48 56 43L32 22"/>'}
+];
+let tutorialIndex=0;
+function openTutorial(){tutorialIndex=0;renderTutorial();$('tutorial-dialog').showModal();}
+function renderTutorial(){const step=tutorialSteps[tutorialIndex];$('tutorial-progress').textContent=`${tutorialIndex+1} of ${tutorialSteps.length}`;$('tutorial-title').textContent=step.title;$('tutorial-description').textContent=step.description;$('tutorial-art').innerHTML=`<svg viewBox="0 0 64 64" fill="none" stroke="#292824" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${step.art}</svg>`;$('tutorial-dots').innerHTML=tutorialSteps.map((_,index)=>`<span class="${index===tutorialIndex?'active':''}"></span>`).join('');$('tutorial-back').disabled=tutorialIndex===0;$('tutorial-next').textContent=tutorialIndex===tutorialSteps.length-1?'Let’s dress Shavit':'Next';}
+function closeTutorial(){try{writePreference('shavit-tutorial-done',true);}catch{}$('tutorial-dialog').close();}
+$('open-tutorial').onclick=openTutorial;$('close-tutorial').onclick=closeTutorial;$('tutorial-skip').onclick=closeTutorial;
+$('tutorial-next').onclick=()=>{if(tutorialIndex===tutorialSteps.length-1)closeTutorial();else{tutorialIndex++;renderTutorial();}};
+$('tutorial-back').onclick=()=>{if(tutorialIndex>0){tutorialIndex--;renderTutorial();}};
+$('tutorial-dialog').addEventListener('cancel',()=>{try{writePreference('shavit-tutorial-done',true);}catch{}});
+
+function showWelcome(){$('outfit-view').hidden=true;$('wardrobe-view').hidden=true;$('welcome-view').hidden=false;window.scrollTo(0,0);$('start-dressing').focus();}
+$('start-dressing').onclick=()=>{try{writePreference('shavit-welcomed',true);}catch{}$('welcome-view').hidden=true;showOutfit();if(!readPreference('shavit-tutorial-done',false))openTutorial();};
+$('meet-shavit').onclick=showWelcome;
+function showOutfit(){$('welcome-view').hidden=true;$('wardrobe-view').hidden=true;$('outfit-view').hidden=false;$('open-wardrobe').focus();requestAnimationFrame(positionJacket);}
 $('open-wardrobe').onclick=()=>{$('outfit-view').hidden=true;$('wardrobe-view').hidden=false;renderWardrobe();$('back-to-outfit').focus();};
 $('back-to-outfit').onclick=showOutfit;
 document.querySelectorAll('[data-category]').forEach(button=>button.onclick=()=>{wardrobeCategory=button.dataset.category;document.querySelectorAll('[data-category]').forEach(tab=>tab.setAttribute('aria-pressed',String(tab===button)));renderWardrobe();});
 $('wardrobe-add').onclick=()=>openUpload();
 $('export-wardrobe').onclick=()=>{
-  const blob=new Blob([JSON.stringify({version:1,clothes})],{type:'application/json'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='shavit-wardrobe.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Wardrobe exported. Transfer this file to your phone.');
+  const blob=new Blob([JSON.stringify({version:1,clothes,savedFits})],{type:'application/json'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='shavit-wardrobe.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Wardrobe exported. Transfer this file to your phone.');
 };
 $('import-wardrobe').onclick=()=>$('wardrobe-backup').click();
 $('wardrobe-backup').onchange=async()=>{
@@ -217,15 +245,20 @@ $('wardrobe-backup').onchange=async()=>{
     if(file.size>200*1024*1024)throw new Error();
     const backup=JSON.parse(await file.text());if(backup.version!==1||!Array.isArray(backup.clothes)||backup.clothes.length>2000)throw new Error();
     const validPhoto=value=>typeof value==='string'&&/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(value);
+    const idMap=new Map();
     const imported=backup.clothes.map(item=>{
       if(!categoryNames[item.category]||typeof item.name!=='string'||!item.name.trim()||!validPhoto(item.photo))throw new Error();
-      return {id:crypto.randomUUID(),name:item.name.trim().slice(0,60),category:item.category,photo:item.photo,...(validPhoto(item.originalPhoto)?{originalPhoto:item.originalPhoto}:{}),...(item.category==='shoes'?{shoeMode:item.shoeMode==='pair'?'pair':'single',shoeFlip:Boolean(item.shoeFlip),...(Array.isArray(item.shoePhotos)&&item.shoePhotos.length===2&&item.shoePhotos.every(validPhoto)?{shoePhotos:item.shoePhotos}:{})}:{})};
+      const id=crypto.randomUUID();idMap.set(item.id,id);
+      return {id,name:item.name.trim().slice(0,60),category:item.category,photo:item.photo,...(validPhoto(item.originalPhoto)?{originalPhoto:item.originalPhoto}:{}),...(item.category==='shoes'?{shoeMode:item.shoeMode==='pair'?'pair':'single',shoeFlip:Boolean(item.shoeFlip),...(Array.isArray(item.shoePhotos)&&item.shoePhotos.length===2&&item.shoePhotos.every(validPhoto)?{shoePhotos:item.shoePhotos}:{})}:{})};
     });
-    await transaction('readwrite',store=>{for(const item of imported)store.put(item);});clothes.push(...imported);render();toast(`Imported ${imported.length} wardrobe pieces.`);
+    await transaction('readwrite',store=>{for(const item of imported)store.put(item);});clothes.push(...imported);
+    if(Array.isArray(backup.savedFits)){const transferred=backup.savedFits.slice(0,2000).filter(fit=>fit&&outfitCategories.every(category=>idMap.has(fit[category])||demos[category].some(item=>item.id===fit[category]))).map(fit=>Object.fromEntries(outfitCategories.map(category=>[category,idMap.get(fit[category])||fit[category]])));savedFits.push(...transferred);try{writePreference('shavit-saved-fits',savedFits);}catch{toast('Clothes imported, but saved fits could not be saved.');}}
+    render();toast(`Imported ${imported.length} wardrobe pieces.`);
   }catch{toast('Could not import. Check the backup file and available device storage.');}
   finally{$('wardrobe-backup').value='';}
 };
 $('random-outfit').onclick=()=>{
+  rememberOutfit();
   moodIndex=(moodIndex+1+Math.floor(Math.random()*(moods.length-1)))%moods.length;
   renderMood();
   const previous=fitKey(selected);
@@ -243,14 +276,14 @@ $('save-outfit').onclick=()=>{
   catch{toast('Could not save this outfit. Check your device storage.');}
 };
 function renderSavedFits(grid){
-  const valid=savedFits.filter(fit=>outfitCategories.every(category=>options(category).some(item=>item.id===fit[category])));
-  if(!valid.length){const empty=document.createElement('p');empty.className='wardrobe-empty';empty.textContent='Tap the bookmark next to Shavit to save a fit.';grid.append(empty);return;}
+  const valid=savedFits.filter(fit=>outfitCategories.every(category=>options(category).some(item=>item.id===fit[category]))&&(!wardrobeQuery||outfitCategories.some(category=>options(category).find(item=>item.id===fit[category])?.name.toLowerCase().includes(wardrobeQuery))));
+  if(!valid.length){const empty=document.createElement('p');empty.className='wardrobe-empty';empty.textContent=wardrobeQuery?'No saved fits match your search.':'Tap the bookmark next to Shavit to save a fit.';grid.append(empty);return;}
   for(const fit of valid){
     const card=document.createElement('article');card.className='wardrobe-piece saved-fit';
     const wear=document.createElement('button');wear.className='piece-wear';wear.setAttribute('aria-label','Wear saved outfit');
     const preview=document.createElement('div');preview.className='saved-fit-preview';
     for(const category of outfitCategories){const item=options(category).find(item=>item.id===fit[category]);if(item.none)continue;const piece=document.createElement(item.photo?'img':'span');if(item.photo){piece.src=item.photo;piece.alt=item.name;}else{piece.textContent=item.name;}preview.append(piece);}
-    const label=document.createElement('strong');label.textContent='Wear this fit';wear.append(preview,label);wear.onclick=()=>{selected={...fit};render();showOutfit();};
+    const label=document.createElement('strong');label.textContent='Wear this fit';wear.append(preview,label);wear.onclick=()=>{rememberOutfit();selected={...fit};render();showOutfit();};
     const remove=document.createElement('button');remove.className='layer-button';remove.textContent='Unsave';remove.onclick=()=>{const next=savedFits.filter(item=>fitKey(item)!==fitKey(fit));try{writePreference('shavit-saved-fits',next);savedFits=next;renderWardrobe();updateBookmark();}catch{toast('Could not unsave this outfit.');}};
     card.append(wear,remove);grid.append(card);
   }
@@ -264,9 +297,10 @@ document.addEventListener('keydown',event=>{if(event.key==='Escape'){const openM
 $('close-rename').onclick=()=>$('rename-dialog').close();
 $('rename-form').onsubmit=async event=>{event.preventDefault();const name=$('rename-name').value.trim();if(!name){$('rename-error').textContent='Please enter a name.';return;}const item=clothes.find(piece=>piece.id===renameItemId);if(!item){$('rename-dialog').close();return;}$('save-name').disabled=true;try{const updated={...item,name};await transaction('readwrite',store=>store.put(updated));clothes=clothes.map(piece=>piece.id===updated.id?updated:piece);render();$('rename-dialog').close();toast('Name updated.');}catch{$('rename-error').textContent='Could not save the name. Please try again.';}finally{$('save-name').disabled=false;}};
 
-function cycle(category){const list=options(category);selected[category]=list[(list.findIndex(c=>c.id===selected[category])+1)%list.length].id;render();if(list.length===1)toast(`Add another ${category} to switch between pieces.`);}
+function cycle(category){rememberOutfit();const list=options(category);selected[category]=list[(list.findIndex(c=>c.id===selected[category])+1)%list.length].id;render();if(list.length===1)toast(`Add another ${category} to switch between pieces.`);}
 for(const category of ['shirt','pants','shoes','jacket']){$(category+'-target').onclick=()=>cycle(category);$(category+'-target').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();cycle(category);}};}
 $('toggle-jacket').onclick=()=>{
+  rememberOutfit();
   if(!current('jacket').none){lastJacket=selected.jacket;selected.jacket='no-jacket';}
   else {const jackets=options('jacket').filter(item=>!item.none);selected.jacket=jackets.find(item=>item.id===lastJacket)?.id||jackets[0].id;}
   render();
@@ -280,11 +314,11 @@ const moods = [
 ];
 let moodIndex=0;
 function renderMood(){const mood=moods[moodIndex];$('face-eyes').setAttribute('d',mood.eyes);$('face-mouth').setAttribute('d',mood.mouth);$('face-target').setAttribute('aria-label',`Change mood: currently ${mood.name}`);}
-function changeMood(){moodIndex=(moodIndex+1)%moods.length;renderMood();}
+function changeMood(){rememberOutfit();moodIndex=(moodIndex+1)%moods.length;renderMood();}
 $('face-target').onclick=changeMood;
 $('face-target').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();changeMood();}};
-function openUpload(){if(!db){toast('Storage is not ready. Please reload.');return;}if(!dialog.open)dialog.showModal();}
-$('category').onchange=()=>{$('shoe-mode-field').hidden=$('category').value!=='shoes';updateUploadPreview();};
+function openUpload(){if(!processedPhoto&&!processing){$('category').value=categoryNames[wardrobeCategory]?wardrobeCategory:readPreference('shavit-upload-category','shirt');if(!categoryNames[$('category').value])$('category').value='shirt';$('shoe-mode-field').hidden=$('category').value!=='shoes';}if(!db){toast('Storage is not ready. Please reload.');return;}if(!dialog.open)dialog.showModal();}
+$('category').onchange=()=>{try{writePreference('shavit-upload-category',$('category').value);}catch{}$('shoe-mode-field').hidden=$('category').value!=='shoes';updateUploadPreview();};
 $('shoe-mode').onchange=updateUploadPreview;
 document.querySelectorAll('[data-shoe-edit]').forEach(button=>button.onclick=async()=>{
   if(!draftShoePhotos||previewBusy||processing)return;previewBusy=true;$('save-piece').disabled=true;
@@ -316,27 +350,50 @@ async function updateUploadPreview(){
   }catch{if(version===previewVersion)$('photo-preview').src=processedPhoto;}
   finally{if(version===previewVersion){previewBusy=false;$('save-piece').disabled=processing;}}
 }
+document.querySelector('.upload-area').onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();if(!processing)$('photo').click();}};
 $('add-top').onclick=openUpload;$('close-dialog').onclick=()=>dialog.close();
+for(const panel of [dialog,$('rename-dialog'),$('cutout-dialog'),$('tutorial-dialog')]){panel.addEventListener('close',()=>document.body.classList.remove('dialog-open'));const observer=new MutationObserver(()=>document.body.classList.toggle('dialog-open',Boolean(document.querySelector('dialog[open]'))));observer.observe(panel,{attributes:true,attributeFilter:['open']});}
+
+
+function blobDataUrl(blob){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(blob);});}
+async function editorImage(src){const image=new Image();image.src=src;await image.decode();return image;}
+$('refine-cutout').onclick=async()=>{
+  if(processing||previewBusy||!originalPhoto||!fullCutoutPhoto)return;
+  try{const [original,cutout]=await Promise.all([editorImage(originalPhoto),editorImage(fullCutoutPhoto)]);const canvas=$('cutout-canvas');canvas.width=original.width;canvas.height=original.height;const ctx=canvas.getContext('2d');ctx.drawImage(cutout,0,0,canvas.width,canvas.height);cutoutEditor={original,cutout,mode:'erase',drawing:false,last:null};$('editor-original').src=originalPhoto;$('editor-status').textContent='';setBrushMode('erase');$('cutout-dialog').showModal();}catch{toast('Could not open this photo for editing.');}
+};
+function setBrushMode(mode){if(!cutoutEditor)return;cutoutEditor.mode=mode;$('brush-erase').setAttribute('aria-pressed',String(mode==='erase'));$('brush-restore').setAttribute('aria-pressed',String(mode==='restore'));$('editor-original').style.opacity=mode==='restore'?'.2':'0';}
+$('brush-erase').onclick=()=>setBrushMode('erase');$('brush-restore').onclick=()=>setBrushMode('restore');
+$('brush-reset').onclick=()=>{if(!cutoutEditor)return;const canvas=$('cutout-canvas'),ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(cutoutEditor.cutout,0,0,canvas.width,canvas.height);};
+function paintCutout(event){if(!cutoutEditor?.drawing)return;const canvas=$('cutout-canvas'),rect=canvas.getBoundingClientRect(),ctx=canvas.getContext('2d');const point={x:(event.clientX-rect.left)*canvas.width/rect.width,y:(event.clientY-rect.top)*canvas.height/rect.height};const radius=Number($('brush-size').value)*canvas.width/rect.width/2;const last=cutoutEditor.last||point;const steps=Math.max(1,Math.ceil(Math.hypot(point.x-last.x,point.y-last.y)/Math.max(1,radius/3)));for(let i=0;i<=steps;i++){const x=last.x+(point.x-last.x)*i/steps,y=last.y+(point.y-last.y)*i/steps;ctx.save();ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);if(cutoutEditor.mode==='erase'){ctx.globalCompositeOperation='destination-out';ctx.fill();}else{ctx.clip();ctx.drawImage(cutoutEditor.original,0,0,canvas.width,canvas.height);}ctx.restore();}cutoutEditor.last=point;}
+$('cutout-canvas').onpointerdown=event=>{if(!cutoutEditor)return;event.preventDefault();cutoutEditor.drawing=true;cutoutEditor.last=null;event.currentTarget.setPointerCapture(event.pointerId);paintCutout(event);};
+$('cutout-canvas').onpointermove=paintCutout;
+for(const type of ['pointerup','pointercancel'])$('cutout-canvas').addEventListener(type,()=>{if(cutoutEditor){cutoutEditor.drawing=false;cutoutEditor.last=null;}});
+$('close-cutout').onclick=()=>$('cutout-dialog').close();
+$('apply-cutout').onclick=async()=>{
+  const button=$('apply-cutout');button.disabled=true;
+  try{const canvas=$('cutout-canvas');const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));const trimmed=await cropCutout(blob);fullCutoutPhoto=canvas.toDataURL('image/png');processedPhoto=trimmed;cutoutPhoto=trimmed;usingOriginal=false;$('original-toggle').hidden=false;$('original-toggle').textContent='Use original photo (keep background)';await updateUploadPreview();$('cutout-dialog').close();$('form-error').textContent='Cutout updated. Ready to add.';}catch{$('editor-status').textContent='Keep some of your clothing visible before saving.';}finally{button.disabled=false;}
+};
+
 async function cropCutout(blob){
   const image=await createImageBitmap(blob);const canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0);image.close();const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data;
   let minX=canvas.width,minY=canvas.height,maxX=-1,maxY=-1;
-  for(let y=0;y<canvas.height;y++)for(let x=0;x<canvas.width;x++)if(pixels[(y*canvas.width+x)*4+3]>8){minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y);}
+  for(let y=0;y<canvas.height;y++)for(let x=0;x<canvas.width;x++)if(pixels[(y*canvas.width+x)*4+3]>2){minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y);}
   if(maxX<0)throw new Error('Could not find clothing in this photo. Try a clearer photo.');
   const w=maxX-minX+1,h=maxY-minY+1,scale=Math.min(1,1000/Math.max(w,h));const out=document.createElement('canvas');out.width=Math.max(1,Math.round(w*scale));out.height=Math.max(1,Math.round(h*scale));out.getContext('2d').drawImage(canvas,minX,minY,w,h,0,0,out.width,out.height);return out.toDataURL('image/png');
 }
 $('photo').onchange=async()=>{
-  const version=++photoVersion;const file=$('photo').files[0];processedPhoto=null;originalPhoto=null;cutoutPhoto=null;usingOriginal=false;draftShoePhotos=null;$('shoe-preview-controls').hidden=true;$('shoe-preview').hidden=true;$('original-toggle').hidden=true;$('form-error').textContent='';$('photo-preview').hidden=true;$('upload-preview').hidden=false;
+  const version=++photoVersion;const file=$('photo').files[0];processedPhoto=null;originalPhoto=null;cutoutPhoto=null;fullCutoutPhoto=null;usingOriginal=false;draftShoePhotos=null;$('refine-cutout').hidden=true;$('shoe-preview-controls').hidden=true;$('shoe-preview').hidden=true;$('original-toggle').hidden=true;$('form-error').textContent='';$('photo-preview').hidden=true;$('upload-preview').hidden=false;
   if(!file)return;
   if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>15*1024*1024){$('form-error').textContent='Choose a JPG, PNG or WebP under 15 MB.';$('photo').value='';return;}
   processing=true;$('save-piece').disabled=true;$('save-piece').textContent='Removing background…';$('photo').disabled=true;$('upload-preview').textContent='Removing background on your device…';
   try{
-    if(!$('piece-name').value)$('piece-name').value=file.name.replace(/\.[^.]+$/,'').slice(0,60);
+    if(!$('piece-name').value)$('piece-name').value=`${{shirt:'Shirt',pants:'Pants',shoes:'Shoes',jacket:'Jacket'}[$('category').value]} ${clothes.filter(item=>item.category===$('category').value).length+1}`;
     // Downsize before inference to keep memory use reasonable on phones.
     const bitmap=await createImageBitmap(file);const scale=Math.min(1,1600/Math.max(bitmap.width,bitmap.height));const input=document.createElement('canvas');input.width=Math.round(bitmap.width*scale);input.height=Math.round(bitmap.height*scale);input.getContext('2d').drawImage(bitmap,0,0,input.width,input.height);bitmap.close();originalPhoto=input.toDataURL('image/png');const blob=await new Promise(resolve=>input.toBlob(resolve,'image/png'));
     const cutout=await removeBackground(blob,{model:'isnet_fp16',device:'cpu',output:{format:'image/png',type:'foreground'},progress:(key,loaded,total)=>{if(version!==photoVersion)return;if(key.startsWith('fetch:'))$('upload-preview').textContent=`Preparing background remover… ${total?Math.round(loaded/total*100):0}%\nFirst use downloads the model; your photo stays here.`;else $('upload-preview').textContent='Removing background on your device…';}});
-    const photo=await cropCutout(cutout);if(version!==photoVersion)return;processedPhoto=photo;cutoutPhoto=photo;$('original-toggle').hidden=false;$('original-toggle').textContent='Use original photo (keep background)';await updateUploadPreview();if($('category').value!=='shoes')$('form-error').textContent='Background removed. Ready to add.';
-  }catch(error){if(version===photoVersion){$('photo').value='';$('upload-preview').textContent='Choose a photo to try again';$('form-error').textContent='Background removal failed. Check your internet for the first model download, then select the photo again.';console.error(error);}}
-  finally{if(version===photoVersion){processing=false;$('save-piece').disabled=previewBusy;$('save-piece').textContent='Add to wardrobe';$('photo').disabled=false;}}
+    fullCutoutPhoto=await blobDataUrl(cutout);$('refine-cutout').hidden=false;const photo=await cropCutout(cutout);if(version!==photoVersion)return;processedPhoto=photo;cutoutPhoto=photo;$('original-toggle').hidden=false;$('original-toggle').textContent='Use original photo (keep background)';await updateUploadPreview();if($('category').value!=='shoes')$('form-error').textContent='Background removed. Ready to add.';
+  }catch(error){if(version===photoVersion){if(originalPhoto){processedPhoto=originalPhoto;cutoutPhoto=originalPhoto;fullCutoutPhoto=originalPhoto;usingOriginal=true;$('refine-cutout').hidden=false;$('photo-preview').src=originalPhoto;$('photo-preview').hidden=false;$('upload-preview').hidden=true;$('form-error').textContent='Automatic removal could not finish. Use Fix cutout to erase the background yourself, or choose another photo.';}else{$('photo').value='';$('upload-preview').textContent='Choose a photo to try again';$('form-error').textContent='This photo could not be read. Try a JPG, PNG or WebP.';}console.error(error);}}
+  finally{if(version===photoVersion){processing=false;$('save-piece').disabled=previewBusy||!processedPhoto;$('save-piece').textContent='Add to wardrobe';$('photo').disabled=false;}}
 };
-$('upload-form').onsubmit=async e=>{e.preventDefault();if(processing||previewBusy)return;if(!processedPhoto){$('form-error').textContent='Choose a photo and wait for background removal first.';return;}const name=$('piece-name').value.trim();if(!name){$('form-error').textContent='Please name this piece.';return;}const item={id:crypto.randomUUID(),name,category:$('category').value,photo:processedPhoto,originalPhoto,...($('category').value==='shoes'?{shoeMode:$('shoe-mode').value,shoePhotos:draftShoePhotos}:{})};$('save-piece').disabled=true;try{await transaction('readwrite',s=>s.put(item));clothes.push(item);selected[item.category]=item.id;render();dialog.close();$('upload-form').reset();$('shoe-mode-field').hidden=true;processedPhoto=null;originalPhoto=null;cutoutPhoto=null;usingOriginal=false;draftShoePhotos=null;$('shoe-preview-controls').hidden=true;$('shoe-preview').hidden=true;$('original-toggle').hidden=true;$('photo-preview').hidden=true;$('upload-preview').hidden=false;$('upload-preview').textContent='＋ Choose a clothing photo';$('form-error').textContent='';toast('Added to your wardrobe.');}catch{$('form-error').textContent='Could not save. Your browser storage may be full. Please free some browser storage and try again.';}finally{$('save-piece').disabled=false;}};
+$('upload-form').onsubmit=async e=>{e.preventDefault();if(processing||previewBusy)return;if(!processedPhoto){$('form-error').textContent='Choose a photo and wait for background removal first.';return;}const name=$('piece-name').value.trim();if(!name){$('form-error').textContent='Please name this piece.';return;}const item={id:crypto.randomUUID(),name,category:$('category').value,photo:processedPhoto,originalPhoto,...($('category').value==='shoes'?{shoeMode:$('shoe-mode').value,shoePhotos:draftShoePhotos}:{})};$('save-piece').disabled=true;try{await transaction('readwrite',s=>s.put(item));clothes.push(item);selected[item.category]=item.id;render();dialog.close();$('upload-form').reset();$('shoe-mode-field').hidden=true;processedPhoto=null;originalPhoto=null;cutoutPhoto=null;fullCutoutPhoto=null;usingOriginal=false;draftShoePhotos=null;$('refine-cutout').hidden=true;$('shoe-preview-controls').hidden=true;$('shoe-preview').hidden=true;$('original-toggle').hidden=true;$('photo-preview').hidden=true;$('upload-preview').hidden=false;$('upload-preview').textContent='＋ Choose a clothing photo';$('form-error').textContent='';toast('Added to your wardrobe.');}catch{$('form-error').textContent='Could not save. Your browser storage may be full. Please free some browser storage and try again.';}finally{$('save-piece').disabled=!processedPhoto;}};
 init();
