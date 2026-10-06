@@ -222,6 +222,9 @@ let tutorialIndex=0;
 function openTutorial(){tutorialIndex=0;renderTutorial();$('tutorial-dialog').showModal();}
 function renderTutorial(){const step=tutorialSteps[tutorialIndex];$('tutorial-progress').textContent=`${tutorialIndex+1} of ${tutorialSteps.length}`;$('tutorial-title').textContent=step.title;$('tutorial-description').textContent=step.description;$('tutorial-art').innerHTML=`<svg viewBox="0 0 64 64" fill="none" stroke="#292824" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${step.art}</svg>`;$('tutorial-dots').innerHTML=tutorialSteps.map((_,index)=>`<span class="${index===tutorialIndex?'active':''}"></span>`).join('');$('tutorial-back').disabled=tutorialIndex===0;$('tutorial-next').textContent=tutorialIndex===tutorialSteps.length-1?'Let’s dress Shavit':'Next';}
 function closeTutorial(){try{writePreference('shavit-tutorial-done',true);}catch{}$('tutorial-dialog').close();}
+$('report-bug').onclick=()=>{$('contact-status').textContent='';$('contact-dialog').showModal();};
+$('close-contact').onclick=()=>{$('contact-dialog').close();$('report-bug').focus();};
+$('copy-contact').onclick=async()=>{try{await navigator.clipboard.writeText('itay200855@gmail.com');$('contact-status').textContent='Email copied.';}catch{$('contact-status').textContent='Press and hold the email address above to copy it.';}};
 $('open-tutorial').onclick=openTutorial;$('close-tutorial').onclick=closeTutorial;$('tutorial-skip').onclick=closeTutorial;
 $('tutorial-next').onclick=()=>{if(tutorialIndex===tutorialSteps.length-1)closeTutorial();else{tutorialIndex++;renderTutorial();}};
 $('tutorial-back').onclick=()=>{if(tutorialIndex>0){tutorialIndex--;renderTutorial();}};
@@ -352,7 +355,7 @@ async function updateUploadPreview(){
 }
 document.querySelector('.upload-area').onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();if(!processing)$('photo').click();}};
 $('add-top').onclick=openUpload;$('close-dialog').onclick=()=>dialog.close();
-for(const panel of [dialog,$('rename-dialog'),$('cutout-dialog'),$('tutorial-dialog')]){panel.addEventListener('close',()=>document.body.classList.remove('dialog-open'));const observer=new MutationObserver(()=>document.body.classList.toggle('dialog-open',Boolean(document.querySelector('dialog[open]'))));observer.observe(panel,{attributes:true,attributeFilter:['open']});}
+for(const panel of [dialog,$('rename-dialog'),$('cutout-dialog'),$('tutorial-dialog'),$('contact-dialog')]){panel.addEventListener('close',()=>document.body.classList.remove('dialog-open'));const observer=new MutationObserver(()=>document.body.classList.toggle('dialog-open',Boolean(document.querySelector('dialog[open]'))));observer.observe(panel,{attributes:true,attributeFilter:['open']});}
 
 
 function blobDataUrl(blob){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(blob);});}
