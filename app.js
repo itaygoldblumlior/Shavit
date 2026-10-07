@@ -1,3 +1,4 @@
+import {nativeApp,readPreference,writePreference,openNativeWardrobe,pickClothingPhoto,shareBackup,installNativeNavigation} from './native-platform.js';
 import {palette,colourName,pickMatchedOutfit,outfitMood,safeMusicLink,musicMoods,pickSongOutfit} from './outfit-colours.js';
 import { randomOutfit } from './random-outfit.js';
 import { removeBackground } from '@imgly/background-removal';
@@ -14,6 +15,7 @@ const demos = {
 };
 let db, clothes = [], selected = {shirt:null,pants:null,shoes:null,jacket:'no-jacket'}, processedPhoto = null, processing = false, photoVersion = 0;
 let lastJacket = null;
+let storageResolved;const storageReady=new Promise(resolve=>storageResolved=resolve);
 let fullCutoutPhoto=null;
 let cutoutEditor=null;
 let previewVersion=0,previewBusy=false,originalPhoto=null,cutoutPhoto=null,usingOriginal=false,draftShoePhotos=null;
@@ -28,8 +30,6 @@ let musicLinks=readPreference('shavit-music',[]);if(!Array.isArray(musicLinks))m
 const colourCache=new Map();
 let colourItemId=null,matchVersion=0;
 const outfitCategories=['shirt','pants','shoes','jacket'];
-function readPreference(key,fallback){try{return JSON.parse(localStorage.getItem(key))||fallback;}catch{return fallback;}}
-function writePreference(key,value){localStorage.setItem(key,JSON.stringify(value));}
 function shuffleOutfit(previous=selected){
   const choices=Object.fromEntries(outfitCategories.map(category=>{const owned=clothes.filter(item=>item.category===category);return [category,owned.length?(category==='jacket'?[...owned,demos.jacket[2]]:owned):category==='jacket'?[demos.jacket[2]]:[current(category)]];}));
   selected=randomOutfit(choices,previous);
@@ -39,12 +39,17 @@ function savedIndex(){return savedFits.findIndex(fit=>fitKey(fit)===fitKey(selec
 function updateBookmark(){const saved=savedIndex()>=0;$('save-outfit').setAttribute('aria-pressed',String(saved));$('save-outfit').setAttribute('aria-label',saved?'Unsave outfit':'Save outfit');$('save-outfit').querySelector('span').textContent=saved?'Saved':'Save fit';}
 const fitCache = new Map();
 const dialog = $('upload-dialog');
+window.addEventListener('shavit-storage-error',()=>toast('Could not save your latest changes. Please check device storage and export a backup.'));
+window.addEventListener('shavit-link-error',()=>toast('Could not open this link. Try again.'));
+if(nativeApp){$('native-photo-actions').hidden=false;$('photo').required=false;for(const source of ['camera','gallery']){$('native-'+source).onclick=async()=>{if(processing)return;try{const file=await pickClothingPhoto(source);if(file)await processClothingPhoto(file);}catch(error){if(!/cancel/i.test(error.message||''))toast('Could not open your photo. Check photo or camera permission in Settings.');}};}}
+installNativeNavigation(()=>{const open=document.querySelector('dialog[open]');if(open){open.close();return;}if(!$('wardrobe-view').hidden){showOutfit();return;}if(!$('welcome-view').hidden){showOutfit();return;}return false;},async file=>{if(await storageReady){openUpload();await processClothingPhoto(file);}});
+window.addEventListener('shavit-photo-error',()=>toast('Could not recover the camera photo. Please choose it again.'));
 let toastTimer;
 function toast(message){ $('toast').textContent = message; $('toast').classList.add('visible'); clearTimeout(toastTimer); toastTimer = setTimeout(()=>$('toast').classList.remove('visible'),4500); }
-function transaction(mode, action){return new Promise((resolve,reject)=>{const tx = db.transaction('clothes',mode);const request=action(tx.objectStore('clothes'));tx.oncomplete=()=>resolve(request?.result);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);});}
+function transaction(mode, action){if(nativeApp)return db.transaction(mode,action);return new Promise((resolve,reject)=>{const tx = db.transaction('clothes',mode);const request=action(tx.objectStore('clothes'));tx.oncomplete=()=>resolve(request?.result);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);});}
 async function init(){
-  try {db = await new Promise((resolve,reject)=>{const request=indexedDB.open('daily-wardrobe',1); request.onupgradeneeded=()=>request.result.createObjectStore('clothes',{keyPath:'id'}); request.onsuccess=()=>resolve(request.result); request.onerror=()=>reject(request.error);}); clothes = await transaction('readonly',s=>s.getAll()); await Promise.all(clothes.map(ensureColour)); savedFits=readPreference('shavit-saved-fits',[]);if(!Array.isArray(savedFits))savedFits=[];savedFits=savedFits.filter(fit=>fit&&outfitCategories.every(category=>options(category).some(item=>item.id===fit[category])));shuffleOutfit(readPreference('shavit-last-outfit',{})); await render();document.body.classList.add('wardrobe-ready');$('random-outfit').disabled=false;$('save-outfit').disabled=false;if(!clothes.length&&!readPreference('shavit-welcomed',false))showWelcome();}
-  catch {toast('Your browser could not open storage. Try a regular browser window.'); $('add-top').disabled=true;}
+  try {db = nativeApp?await openNativeWardrobe():await new Promise((resolve,reject)=>{const request=indexedDB.open('daily-wardrobe',1); request.onupgradeneeded=()=>request.result.createObjectStore('clothes',{keyPath:'id'}); request.onsuccess=()=>resolve(request.result); request.onerror=()=>reject(request.error);}); clothes = await transaction('readonly',s=>s.getAll());storageResolved(true); await Promise.all(clothes.map(ensureColour)); savedFits=readPreference('shavit-saved-fits',[]);if(!Array.isArray(savedFits))savedFits=[];savedFits=savedFits.filter(fit=>fit&&outfitCategories.every(category=>options(category).some(item=>item.id===fit[category])));shuffleOutfit(readPreference('shavit-last-outfit',{})); await render();document.body.classList.add('wardrobe-ready');$('random-outfit').disabled=false;$('save-outfit').disabled=false;if(!clothes.length&&!readPreference('shavit-welcomed',false))showWelcome();}
+  catch {storageResolved(false);toast(nativeApp?'Could not open your saved wardrobe. Please close and reopen Shavit.':'Your browser could not open storage. Try a regular browser window.'); $('add-top').disabled=true;}
 }
 function options(category){const own=clothes.filter(c=>c.category===category);return own.length?(category==='jacket'?[...own,demos.jacket[2]]:own):demos[category];}
 function current(category){const list=options(category);return list.find(c=>c.id===selected[category])||list[0];}
@@ -244,7 +249,8 @@ $('open-wardrobe').onclick=()=>{$('outfit-view').hidden=true;$('wardrobe-view').
 $('back-to-outfit').onclick=showOutfit;
 document.querySelectorAll('[data-category]').forEach(button=>button.onclick=()=>{wardrobeCategory=button.dataset.category;document.querySelectorAll('[data-category]').forEach(tab=>tab.setAttribute('aria-pressed',String(tab===button)));renderWardrobe();});
 $('wardrobe-add').onclick=()=>openUpload();
-$('export-wardrobe').onclick=()=>{
+$('export-wardrobe').onclick=async()=>{
+  if(nativeApp){try{await shareBackup({version:1,clothes,savedFits,musicLinks});}catch{toast('Could not share your backup. Try again.');}return;}
   const blob=new Blob([JSON.stringify({version:1,clothes,savedFits,musicLinks})],{type:'application/json'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='shavit-wardrobe.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Wardrobe exported. Transfer this file to your phone.');
 };
 $('import-wardrobe').onclick=()=>$('wardrobe-backup').click();
@@ -392,8 +398,9 @@ async function cropCutout(blob){
   if(maxX<0)throw new Error('Could not find clothing in this photo. Try a clearer photo.');
   const w=maxX-minX+1,h=maxY-minY+1,scale=Math.min(1,1000/Math.max(w,h));const out=document.createElement('canvas');out.width=Math.max(1,Math.round(w*scale));out.height=Math.max(1,Math.round(h*scale));out.getContext('2d').drawImage(canvas,minX,minY,w,h,0,0,out.width,out.height);return out.toDataURL('image/png');
 }
-$('photo').onchange=async()=>{
-  const version=++photoVersion;const file=$('photo').files[0];processedPhoto=null;originalPhoto=null;cutoutPhoto=null;fullCutoutPhoto=null;usingOriginal=false;draftShoePhotos=null;$('refine-cutout').hidden=true;$('shoe-preview-controls').hidden=true;$('shoe-preview').hidden=true;$('original-toggle').hidden=true;$('form-error').textContent='';$('photo-preview').hidden=true;$('upload-preview').hidden=false;
+$('photo').onchange=()=>processClothingPhoto($('photo').files[0]);
+async function processClothingPhoto(file){
+  const version=++photoVersion;processedPhoto=null;originalPhoto=null;cutoutPhoto=null;fullCutoutPhoto=null;usingOriginal=false;draftShoePhotos=null;$('refine-cutout').hidden=true;$('shoe-preview-controls').hidden=true;$('shoe-preview').hidden=true;$('original-toggle').hidden=true;$('form-error').textContent='';$('photo-preview').hidden=true;$('upload-preview').hidden=false;
   if(!file)return;
   if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>15*1024*1024){$('form-error').textContent='Choose a JPG, PNG or WebP under 15 MB.';$('photo').value='';return;}
   processing=true;$('save-piece').disabled=true;$('save-piece').textContent='Removing background…';$('photo').disabled=true;$('upload-preview').textContent='Removing background on your device…';
@@ -401,11 +408,12 @@ $('photo').onchange=async()=>{
     if(!$('piece-name').value)$('piece-name').value=`${{shirt:'Shirt',pants:'Pants',shoes:'Shoes',jacket:'Jacket'}[$('category').value]} ${clothes.filter(item=>item.category===$('category').value).length+1}`;
     // Downsize before inference to keep memory use reasonable on phones.
     const bitmap=await createImageBitmap(file);const scale=Math.min(1,1600/Math.max(bitmap.width,bitmap.height));const input=document.createElement('canvas');input.width=Math.round(bitmap.width*scale);input.height=Math.round(bitmap.height*scale);input.getContext('2d').drawImage(bitmap,0,0,input.width,input.height);bitmap.close();originalPhoto=input.toDataURL('image/png');const blob=await new Promise(resolve=>input.toBlob(resolve,'image/png'));
+    if(nativeApp&&!readPreference('shavit-model-download-approved',false)){if(!confirm('Automatic background removal downloads about 100 MB of model and runtime files on first use. Your photo stays on your device. Continue? Cancel to use the manual cutout editor instead.'))throw new Error('Model download declined');writePreference('shavit-model-download-approved',true);}
     const cutout=await removeBackground(blob,{model:'isnet_fp16',device:'cpu',output:{format:'image/png',type:'foreground'},progress:(key,loaded,total)=>{if(version!==photoVersion)return;if(key.startsWith('fetch:'))$('upload-preview').textContent=`Preparing background remover… ${total?Math.round(loaded/total*100):0}%\nFirst use downloads the model; your photo stays here.`;else $('upload-preview').textContent='Removing background on your device…';}});
     fullCutoutPhoto=await blobDataUrl(cutout);$('refine-cutout').hidden=false;const photo=await cropCutout(cutout);if(version!==photoVersion)return;processedPhoto=photo;cutoutPhoto=photo;$('original-toggle').hidden=false;$('original-toggle').textContent='Use original photo (keep background)';await updateUploadPreview();if($('category').value!=='shoes')$('form-error').textContent='Background removed. Ready to add.';
   }catch(error){if(version===photoVersion){if(originalPhoto){processedPhoto=originalPhoto;cutoutPhoto=originalPhoto;fullCutoutPhoto=originalPhoto;usingOriginal=true;$('refine-cutout').hidden=false;$('photo-preview').src=originalPhoto;$('photo-preview').hidden=false;$('upload-preview').hidden=true;$('form-error').textContent='Automatic removal could not finish. Use Fix cutout to erase the background yourself, or choose another photo.';}else{$('photo').value='';$('upload-preview').textContent='Choose a photo to try again';$('form-error').textContent='This photo could not be read. Try a JPG, PNG or WebP.';}console.error(error);}}
   finally{if(version===photoVersion){processing=false;$('save-piece').disabled=previewBusy||!processedPhoto;$('save-piece').textContent='Add to wardrobe';$('photo').disabled=false;}}
-};
+}
 $('upload-form').onsubmit=async e=>{e.preventDefault();if(processing||previewBusy)return;if(!processedPhoto){$('form-error').textContent='Choose a photo and wait for background removal first.';return;}const name=$('piece-name').value.trim();if(!name){$('form-error').textContent='Please name this piece.';return;}const item={id:crypto.randomUUID(),name,category:$('category').value,photo:processedPhoto,originalPhoto,...($('category').value==='shoes'?{shoeMode:$('shoe-mode').value,shoePhotos:draftShoePhotos}:{})};$('save-piece').disabled=true;try{if($('piece-colour').value!=='auto'){item.colour=palette[$('piece-colour').value];item.colourSource='manual';}await ensureColour(item);await transaction('readwrite',s=>s.put(item));clothes.push(item);selected[item.category]=item.id;render();dialog.close();$('upload-form').reset();$('shoe-mode-field').hidden=true;processedPhoto=null;originalPhoto=null;cutoutPhoto=null;fullCutoutPhoto=null;usingOriginal=false;draftShoePhotos=null;$('refine-cutout').hidden=true;$('shoe-preview-controls').hidden=true;$('shoe-preview').hidden=true;$('original-toggle').hidden=true;$('photo-preview').hidden=true;$('upload-preview').hidden=false;$('upload-preview').textContent='＋ Choose a clothing photo';$('form-error').textContent='';toast('Added to your wardrobe.');}catch{$('form-error').textContent='Could not save. Your browser storage may be full. Please free some browser storage and try again.';}finally{$('save-piece').disabled=!processedPhoto;}};
 
 for(const id of ['piece-colour','edit-colour'])for(const [name,hex] of Object.entries(palette)){const option=document.createElement('option');option.value=name;option.textContent=name[0].toUpperCase()+name.slice(1);$(id).append(option);}
