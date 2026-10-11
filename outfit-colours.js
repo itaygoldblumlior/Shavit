@@ -55,3 +55,22 @@ export const musicMoods=["chill","energetic","confident","moody","happy","focuse
 
 export function songColourScore(hex,mood){const {h,s,v}=hsv(hex);const warm=h<70||h>330;switch(mood){case 'moody':return 1-v;case 'energetic':return s*.7+v*.3;case 'confident':return s*.6+(1-v)*.4;case 'happy':return v*.6+(warm?s:0)*.4;case 'focused':return (1-s)*.7+(1-Math.abs(v-.55))*.3;case 'romantic':return (h>280||h<20?.6:0)+v*.2+(1-s)*.2;case 'nostalgic':return (h>15&&h<70?.5:0)+(1-s)*.3+(1-Math.abs(v-.6))*.2;case 'dreamy':return v*.5+(1-s)*.3+(h>190&&h<330?.2:0);default:return (1-s)*.6+v*.4;}}
 export function pickSongOutfit(groups,mood,previous={},random=Math.random){if(!musicMoods.includes(mood))throw new Error('Choose a music mood first.');const style=['energetic','confident','happy'].includes(mood)?'bold':['dreamy','romantic','chill'].includes(mood)?'similar':'balanced';const score=items=>items.reduce((sum,item)=>sum+songColourScore(item.colour,mood),0)/items.length*.7+outfitScore(items,style)*.3;let beam=[[]];for(const category of ['shirt','pants','shoes']){if(!groups[category]?.length)throw new Error('Add at least one shirt, pants and shoes to dress for a song.');beam=beam.flatMap(items=>groups[category].map(item=>[...items,item])).sort((a,b)=>score(b)-score(a)).slice(0,80);}const variants=beam.flatMap(items=>[items,...(groups.jacket||[]).filter(jacket=>items.every(item=>pairScore(item.colour,jacket.colour,style)>=.65)).map(jacket=>[...items,jacket])]).sort((a,b)=>score(b)-score(a));const best=score(variants[0]);const top=variants.filter(items=>score(items)>=best-.04).slice(0,12);const alternatives=top.filter(items=>items.some(item=>previous[item.category]!==item.id)||(!items.some(item=>item.category==='jacket')&&previous.jacket!=='no-jacket'));const choices=alternatives.length?alternatives:top;return Object.fromEntries([['jacket','no-jacket'],...choices[Math.floor(random()*choices.length)].map(item=>[item.category,item.id])]);}
+
+export function pickSurpriseOutfit(groups,previous={},random=Math.random) {
+ // Sample across the wardrobe first, then keep coherent palettes for variety.
+ const candidates=[];
+ for(const category of ['shirt','pants','shoes'])if(!groups[category]?.length)throw new Error('Add at least one shirt, pants and shoes to surprise you with a whole outfit.');
+ const choose=items=>items[Math.min(items.length-1,Math.floor(random()*items.length))];
+ for(let i=0;i<600;i++){
+   const items=['shirt','pants','shoes'].map(category=>choose(groups[category]));
+   const jackets=(groups.jacket||[]).filter(jacket=>items.every(item=>pairScore(item.colour,jacket.colour,'balanced')>=.75));
+   if(jackets.length&&random()<.4)items.push(choose(jackets));
+   const outfit=Object.fromEntries([['jacket','no-jacket'],...items.map(item=>[item.category,item.id])]);
+   if(!candidates.some(candidate=>['shirt','pants','shoes','jacket'].every(key=>candidate.outfit[key]===outfit[key])))candidates.push({outfit,score:outfitScore(items,'balanced')});
+ }
+ const best=Math.max(...candidates.map(candidate=>candidate.score));
+ const compatible=candidates.filter(candidate=>candidate.score>=Math.max(.72,best-.12));
+ const pool=compatible.length?compatible:candidates.filter(candidate=>candidate.score>=best-.04);
+ const alternatives=pool.filter(candidate=>['shirt','pants','shoes','jacket'].some(key=>candidate.outfit[key]!==previous[key]));
+ return choose(alternatives.length?alternatives:pool).outfit;
+}

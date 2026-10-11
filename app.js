@@ -1,6 +1,6 @@
 import {installFitVideo} from './fit-video.js';
 import {nativeApp,readPreference,writePreference,openNativeWardrobe,pickClothingPhoto,pickFitVideo,shareBackup,installNativeNavigation} from './native-platform.js';
-import {palette,colourName,explainColourMatch,pickMatchedOutfit,outfitMood,safeMusicLink,musicMoods,pickSongOutfit} from './outfit-colours.js';
+import {palette,colourName,explainColourMatch,pickSurpriseOutfit,pickMatchedOutfit,outfitMood,safeMusicLink,musicMoods,pickSongOutfit} from './outfit-colours.js';
 import { randomOutfit } from './random-outfit.js';
 import { removeBackground } from '@imgly/background-removal';
 import { garmentLayout, fitGarment } from './garment-layout.js';
@@ -449,3 +449,14 @@ $('music-form').onsubmit=async event=>{event.preventDefault();const url=safeMusi
 for(const mood of musicMoods){for(const id of ['music-mood','soundtrack-mood']){const option=document.createElement('option');option.value=mood;option.textContent=mood[0].toUpperCase()+mood.slice(1);$(id).append(option);}}
 $('soundtrack-mood').onchange=()=>refreshMatchPanel();
 init();
+
+$('surprise-colours').onclick=async()=>{
+ const button=$('surprise-colours');button.disabled=true;$('match-colours').disabled=true;
+ try{
+   await Promise.all(clothes.map(ensureColour));
+   const groups=Object.fromEntries(outfitCategories.map(category=>[category,clothes.filter(item=>item.category===category)]));
+   const outfit=pickSurpriseOutfit(groups,selected);rememberOutfit();selected=outfit;await render();
+   $('match-status').textContent='Surprise! '+explainColourMatch(outfitCategories.map(current).filter(item=>!item.none),'balanced');
+ }catch(error){$('match-status').textContent=error.message;}
+ finally{button.disabled=false;$('match-colours').disabled=false;}
+};
