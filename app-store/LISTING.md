@@ -12,6 +12,7 @@ Don't have time in the mornings, or don't feel like choosing your outfit? Meet S
 
 Add photos of your own clothes and build a wardrobe that stays on your device. Tap a shirt, pants or shoes to switch them, roll the dice for a fresh look, and bookmark the outfits you love.
 
+• Film your fit, choose a frame, adjust suggested regions, and save each clothing item after review.
 • Remove photo backgrounds on your device, then touch up cutouts with your finger.
 • Match outfit colours with balanced, similar or bold styles.
 • Save song and playlist links with mood tags, then dress for a song.
@@ -32,6 +33,8 @@ Apple keywords: wardrobe,outfit,clothes,style,colour,music,closet
 ## Review notes
 
 No account or login is required. First-time users see a welcome and optional tutorial. Tap Add clothes, choose a category and select a clothing photo. In the native app, use Take a photo or Choose from photos. Save it, then tap the outfit to cycle items. Colours requires at least one saved shirt, pants item and shoes item. Music links need an HTTPS link, name and mood; Dress for this song uses that mood to choose owned clothes. Saved fits use the bookmark. Help & backups is inside Wardrobe.
+
+Film or photograph your fit is inside Add clothes. Choose a full-outfit photo, or record/select a video up to 2 minutes / 150 MB. Choose a frame, move/resize the default full-body crop regions, then review each piece. The regions are framing suggestions, not automatic garment recognition. Each piece opens the photo review form; saved pieces remain if the remaining queue is discarded.
 
 All clothing processing is local. The first native use discloses an approximately 100 MB model/runtime download and asks for consent. If removal fails, the original is retained for manual Fix cutout. No payment is required for any app feature.
 

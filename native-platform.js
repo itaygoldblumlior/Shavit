@@ -2,7 +2,7 @@ import {Capacitor} from '@capacitor/core';
 import {Preferences} from '@capacitor/preferences';
 import {Filesystem,Directory,Encoding} from '@capacitor/filesystem';
 import {Share} from '@capacitor/share';
-import {Camera} from '@capacitor/camera';
+import {Camera,MediaTypeSelection,MediaType} from '@capacitor/camera';
 import {Browser} from '@capacitor/browser';
 import {App} from '@capacitor/app';
 import {createNativeWardrobe} from './native-storage.js';
@@ -46,6 +46,16 @@ export async function pickClothingPhoto(source) {
   const media=source==='camera'?await Camera.takePhoto({...options,saveToGallery:false}):(await Camera.chooseFromGallery({...options,allowMultipleSelection:false})).results[0];
   return clothingFileFromMedia(media);
 }
+export async function pickFitVideo(source) {
+  if(source==='photo')return pickClothingPhoto('gallery');
+  const media=source==='camera'?await Camera.recordVideo({saveToGallery:false,isPersistent:false}):(await Camera.chooseFromGallery({mediaType:MediaTypeSelection.Video,allowMultipleSelection:false,isPersistent:false})).results[0];
+  if(!media)return null;
+  const response=await fetch(media.webPath||Capacitor.convertFileSrc(media.uri));
+  if(!response.ok)throw new Error('Could not read your video');
+  const blob=await response.blob();
+  if(blob.size>150*1024*1024)throw new Error('Choose a video under 150 MB');
+  return new File([blob],'fit-video.mov',{type:blob.type||'video/quicktime'});
+}
 async function clothingFileFromMedia(media){
   if(!media)return null;
   const uri=media.webPath||Capacitor.convertFileSrc(media.uri);
@@ -64,7 +74,7 @@ export async function shareBackup(backup) {
 export function installNativeNavigation(onBack,onRestoredPhoto) {
   if(!nativeApp)return;
   App.addListener('backButton',()=>{if(onBack()===false)App.minimizeApp();});
-  App.addListener('appRestoredResult',async result=>{if(result.pluginId!=='Camera'||!result.success||!['takePhoto','chooseFromGallery'].includes(result.methodName))return;try{const media=result.methodName==='chooseFromGallery'?result.data?.results?.[0]:result.data;const file=await clothingFileFromMedia(media);if(file)await onRestoredPhoto(file);}catch{window.dispatchEvent(new Event('shavit-photo-error'));}});
+  App.addListener('appRestoredResult',async result=>{if(result.pluginId!=='Camera'||!result.success||!['takePhoto','chooseFromGallery'].includes(result.methodName))return;try{const media=result.methodName==='chooseFromGallery'?result.data?.results?.[0]:result.data;if(media?.type===MediaType.Video)return;const file=await clothingFileFromMedia(media);if(file)await onRestoredPhoto(file);}catch{window.dispatchEvent(new Event('shavit-photo-error'));}});
   App.addListener('appStateChange',({isActive})=>{if(!isActive)flushPreferences().catch(()=>{});});
   document.addEventListener('click',event=>{
     const link=event.target.closest('a[href]');

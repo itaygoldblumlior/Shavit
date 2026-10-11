@@ -8,3 +8,8 @@ dist/
 *.p12
 *.mobileprovision
 keystore.properties
+
+# Local build/archive outputs
+*.xcarchive
+*.ipa
+release-artifacts/
