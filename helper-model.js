@@ -55,7 +55,7 @@ export function validateBackup(value){
  const validKey=k=>/^\d{4}-\d{2}-\d{2}$/.test(k)&&dateKey(localDate(k))===k;
  if(!validKey(value.start)||(value.version===1?value.schedule.some(x=>typeof x!=='string'||x.length>80):value.schedule.some(day=>!validActivities(day))))throw new Error('Invalid schedule.');
  const checkExercises=items=>Array.isArray(items)&&items.length<=100&&items.every(e=>typeof e.name==='string'&&e.name.length<=150&&Array.isArray(e.sets)&&e.sets.length<=50&&e.sets.every(s=>['warmup','working'].includes(s.kind)&&Number.isFinite(s.kg)&&s.kg>=0&&s.kg<=2000&&Number.isInteger(s.reps)&&s.reps>=0&&s.reps<=1000));
- if(value.templates.some(t=>typeof t.name!=='string'||!checkExercises(t.exercises))||Object.entries(value.sessions).some(([key,s])=>!validKey(s.date)||(value.version===1?s.date!==key:(!['lift','run'].includes(s.type)||typeof s.activityId!=='string'||key!==sessionKey(s.date,s.activityId)))||typeof s.plan!=='string'||!checkExercises(s.exercises)||(s.type==='run'&&(!Number.isFinite(s.km??0)||s.km<0||s.km>1000||!Number.isFinite(s.minutes??0)||s.minutes<0||s.minutes>10000))))throw new Error('Invalid workout data.');
+ if(value.templates.some(t=>typeof t.name!=='string'||!checkExercises(t.exercises))||Object.entries(value.sessions).some(([key,s])=>!validKey(s.date)||(value.version===1?s.date!==key:(!['lift','run'].includes(s.type)||typeof s.activityId!=='string'||key!==sessionKey(s.date,s.activityId)))||typeof s.plan!=='string'||!checkExercises(s.exercises)||(s.type==='run'&&(!Number.isFinite(s.km??0)||s.km<0||s.km>1000||!Number.isFinite(s.minutes??0)||s.minutes<0||s.minutes>10000||(s.durationSeconds!==undefined&&(!Number.isInteger(s.durationSeconds)||s.durationSeconds<0||s.durationSeconds>600000))))))throw new Error('Invalid workout data.');
  if(value.tasks.some(t=>typeof t.id!=='string'||typeof t.name!=='string'||!Array.isArray(t.days)||t.days.some(d=>!Number.isInteger(d)||d<0||d>6)||!validKey(t.start)||!Array.isArray(t.done)||t.done.some(d=>!validKey(d))||(t.date&&!validKey(t.date))))throw new Error('Invalid tasks.');
  if(value.version===2&&(!value.dayPlans||Object.entries(value.dayPlans).some(([key,items])=>!validKey(key)||!validActivities(items))))throw new Error('Invalid daily schedule.');
  return migrateState(structuredClone(value));
@@ -67,3 +67,11 @@ export function scheduleProgress(state,date){
  const completed=activities.filter(a=>state.sessions[sessionKey(date,a.id)]?.completed).length+tasks.filter(t=>t.done.includes(date)).length;
  return {total,completed,left:total-completed,percent:total?Math.round(completed/total*100):0};
 }
+export function parseRunTime(value){
+ const text=String(value).trim();if(!/^\d{1,4}(?::[0-5]\d)?$/.test(text))throw new Error('Enter minutes:seconds, like 14:30, or whole minutes, like 15.');
+ const [minutes,seconds='0']=text.split(':');const total=Number(minutes)*60+Number(seconds);if(total<=0||total>600000)throw new Error('Enter a running time greater than zero.');return total;
+}
+export const runSeconds=run=>Number.isFinite(run.durationSeconds)?run.durationSeconds:Math.round((run.minutes??0)*60);
+export function formatRunTime(seconds){const whole=Math.round(Math.max(0,seconds));return Math.floor(whole/60)+':'+String(whole%60).padStart(2,'0');}
+export const runPace=run=>run.km>0&&runSeconds(run)>0?formatRunTime(runSeconds(run)/run.km)+' /km':'—';
+export function previousRuns(state,run){return Object.values(state.sessions).filter(s=>s.type==='run'&&s.completed&&s.date<run.date&&s.km>0&&runSeconds(s)>0&&Math.round(s.km*100)===Math.round(run.km*100)).sort((a,b)=>b.date.localeCompare(a.date));}
