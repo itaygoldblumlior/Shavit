@@ -60,3 +60,10 @@ export function validateBackup(value){
  if(value.version===2&&(!value.dayPlans||Object.entries(value.dayPlans).some(([key,items])=>!validKey(key)||!validActivities(items))))throw new Error('Invalid daily schedule.');
  return migrateState(structuredClone(value));
 }
+
+export function scheduleProgress(state,date){
+ const activities=activitiesOn(state,date),tasks=tasksOn(state,date);
+ const total=activities.length+tasks.length;
+ const completed=activities.filter(a=>state.sessions[sessionKey(date,a.id)]?.completed).length+tasks.filter(t=>t.done.includes(date)).length;
+ return {total,completed,left:total-completed,percent:total?Math.round(completed/total*100):0};
+}
