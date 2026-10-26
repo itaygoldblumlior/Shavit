@@ -26,14 +26,6 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>NSCameraUsageDescription</key>
-	<string>Take photos or record your outfit to add individual clothes to your wardrobe.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Record audio with an outfit video. Shavit only uses video frames to prepare clothing photos.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Save a clothing photo only when you choose to save it to Photos.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Choose clothing photos to add to your wardrobe. Photos are processed on your device.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

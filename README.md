@@ -1,26 +1,19 @@
 # Shavit — your cool friend
+A device-only daily planner and workout journal. Navy mobile interface, Sunday-start week, configurable workout schedule, reusable exercise plans, warm-up/working sets, kg/reps, previous session comparisons, rest-aware workout streaks, one-time and recurring tasks, and native 9 AM local reminders.
 
-A device-local wardrobe at https://shavitcoolfriend.com/. Tap clothes to cycle pieces, shuffle outfits, save fits, match colours, and pick clothes from music mood tags. Photos are processed locally with manual erase/restore cutout repair.
+## Run and verify
+- `npm run dev` — local preview
+- `npm run test:helper` — workout parsing, streak, history, task and backup validation checks
+- `npm run app:sync` — production web build, offline shell generation and Capacitor sync
+- `npm run app:check` — storage and native configuration checks
+- `npm run app:ios` — sync and open Xcode
 
-## Website
+## Data
+Browser IndexedDB and native Preferences are independent, local stores. JSON export/import moves data between them. Private workout imports must never go in public/, dist/, or source commits. Text note import uses `Exercise 40x8 60x6 60x6` per line; wrapped set lines work. First sets default to warm-up. Screenshots are not automatically OCRed.
 
-npm ci
-npm run dev
-npm run build
+New workout plans can be pasted or typed in Workouts. Blank sessions support adding exercises with total and warm-up set counts. Use “Use these exercises as my plan” to reuse an edited session. Historical completed sessions supply previous results. Streaks start at onboarding and count only scheduled workouts; rest days preserve them and today is not missed until midnight.
 
-Vite serves http://127.0.0.1:5173/. Website clothes use IndexedDB; preferences, saved fits and music use localStorage. Storage belongs to that browser and origin. Export backups before changing devices or clearing storage.
+## iPhone
+App ID remains com.shavitcoolfriend.app, version 2.0 build 3. Install the rebuilt app through Xcode. Enable 9 AM notifications in More and accept the iOS prompt. Native reminders use the official Capacitor LocalNotifications plugin and do not need a server. Real-device notification delivery still requires testing. App Store distribution still requires the owner's Apple Developer enrollment and release signing.
 
-## iOS and Android app projects
-
-npm run app:sync
-npm run app:ios
-npm run app:android
-npm run app:check
-
-See app-store/RELEASE.md for tooling, testing and submission requirements; app-store/LISTING.md contains draft store text. Native builds use private files and Preferences, native photo/camera entry, and backup sharing. Browser and app data do not automatically sync; use wardrobe JSON export/import.
-
-Core native UI is bundled for offline browsing. Automatic background removal downloads model/runtime files on first use; fully offline first use is unsupported. Physical device compatibility still needs verification.
-
-## Licensing
-
-The background-removal dependency is IMG.LY @imgly/background-removal 1.7.0 (AGPL-3.0). Store distribution is pending a licensing decision; app-store/RELEASE.md records this release prerequisite. Installing or preparing native projects does not grant distribution rights.
+The clothing interface and its background removal/photo dependencies have been removed. Previous versions remain in Git history; no new runtime imports old wardrobe data.

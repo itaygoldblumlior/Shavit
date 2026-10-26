@@ -2,7 +2,11 @@
   "appId": "com.shavitcoolfriend.app",
   "appName": "Shavit",
   "webDir": "dist",
-  "backgroundColor": "#fffefb",
-  "ios": { "contentInset": "never" },
-  "android": { "allowMixedContent": false }
+  "backgroundColor": "#0c1526",
+  "ios": {
+    "contentInset": "never"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
 }

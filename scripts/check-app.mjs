@@ -9,7 +9,9 @@ for(const path of ['ios/App/App.xcodeproj/project.pbxproj','android/gradlew','io
 const privacy=fs.readFileSync('ios/App/App/PrivacyInfo.xcprivacy','utf8');
 assert(privacy.includes('CA92.1')&&privacy.includes('C617.1'));
 const plist=fs.readFileSync('ios/App/App/Info.plist','utf8');
-assert(plist.includes('NSCameraUsageDescription')&&plist.includes('NSPhotoLibraryUsageDescription'));
+assert(!plist.includes('NSCameraUsageDescription')&&!plist.includes('NSPhotoLibraryUsageDescription'));
+assert(fs.readFileSync('helper-reminders.js','utf8').includes('hour:9,minute:0'));
+assert(fs.readFileSync('ios/App/CapApp-SPM/Package.swift','utf8').includes('CapacitorLocalNotifications'));
 const manifest=fs.readFileSync('android/app/src/main/AndroidManifest.xml','utf8');
 assert(manifest.includes('android:allowBackup="false"'));
 for(const permission of ['ACCESS_FINE_LOCATION','RECORD_AUDIO','READ_CONTACTS'])assert(!manifest.includes(permission));
