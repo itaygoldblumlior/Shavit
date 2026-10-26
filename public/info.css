@@ -6,3 +6,5 @@
 .run-activity{grid-template-columns:1fr 32px;background:#0f1c30;border:1px solid #3b506d;border-radius:12px;padding:2px 9px 2px 14px}.run-label{font-size:15px;color:#c7dfff;font-weight:600}
 
 .run-metrics{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin:20px 0}.run-metrics>div{background:#101d30;padding:16px;border-radius:14px}.run-metrics small{font-size:10px;letter-spacing:1px;color:#91a2bd}.run-metrics strong{display:block;font-size:24px;color:#c4deff;margin-top:8px}.run-comparison{display:inline-block;color:#9bd8c1;margin-top:6px}.run-history summary{font-size:14px}
+
+.repeat-workout{display:flex;align-items:center;gap:10px;margin-top:22px}.repeat-workout input{margin:0;width:22px;min-height:22px;accent-color:#89bcff}

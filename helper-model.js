@@ -75,3 +75,18 @@ export const runSeconds=run=>Number.isFinite(run.durationSeconds)?run.durationSe
 export function formatRunTime(seconds){const whole=Math.round(Math.max(0,seconds));return Math.floor(whole/60)+':'+String(whole%60).padStart(2,'0');}
 export const runPace=run=>run.km>0&&runSeconds(run)>0?formatRunTime(runSeconds(run)/run.km)+' /km':'—';
 export function previousRuns(state,run){return Object.values(state.sessions).filter(s=>s.type==='run'&&s.completed&&s.date<run.date&&s.km>0&&runSeconds(s)>0&&Math.round(s.km*100)===Math.round(run.km*100)).sort((a,b)=>b.date.localeCompare(a.date));}
+export function addWorkoutToDay(state,date,activity,repeat=true){
+ if(!activity.name.trim())throw new Error('Give your workout a name.');
+ if(activitiesOn(state,date).length>=10)throw new Error('Up to 10 activities per day.');
+ const current=structuredClone(activitiesOn(state,date));
+ if(repeat){
+  // Keep previous days intact when adding a recurring activity.
+  for(let key=state.start;key<date;key=shiftDate(key,1))if(!state.dayPlans[key])state.dayPlans[key]=structuredClone(state.schedule[localDate(key).getDay()]);
+  const weekday=localDate(date).getDay();
+  if(state.schedule[weekday].length>=10)throw new Error('Up to 10 weekly activities per day.');
+  state.schedule[weekday].push(structuredClone(activity));
+  for(const key of Object.keys(state.dayPlans))if(key>date&&localDate(key).getDay()===weekday&&!state.dayPlans[key].some(a=>a.id===activity.id))state.dayPlans[key].push(structuredClone(activity));
+ }
+ state.dayPlans[date]=[...current,structuredClone(activity)];
+ if(activity.type==='lift'&&!state.templates.some(t=>t.name===activity.name))state.templates.push({id:uid(),name:activity.name,exercises:[]});
+}
