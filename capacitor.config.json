@@ -1,7 +1,7 @@
 {
   "appId": "com.shavitcoolfriend.app",
   "appName": "Shavit",
-  "webDir": "dist",
+  "webDir": "dist-native",
   "backgroundColor": "#0c1526",
   "ios": {
     "contentInset": "never"

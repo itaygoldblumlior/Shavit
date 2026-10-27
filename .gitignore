@@ -13,3 +13,5 @@ keystore.properties
 *.xcarchive
 *.ipa
 release-artifacts/
+
+dist-native/

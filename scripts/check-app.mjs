@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 const config=JSON.parse(fs.readFileSync('capacitor.config.json'));
 assert.equal(config.appId,'com.shavitcoolfriend.app');
-assert.equal(config.webDir,'dist');
+assert.equal(config.webDir,'dist-native');
 assert(!config.server?.url,'Release app must contain its own bundled code');
 assert(!config.server?.cleartext,'Release app must not allow cleartext');
 for(const path of ['ios/App/App.xcodeproj/project.pbxproj','android/gradlew','ios/App/App/PrivacyInfo.xcprivacy','public/privacy.html','public/support.html'])assert(fs.existsSync(path),`${path} missing`);

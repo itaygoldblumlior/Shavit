@@ -7,11 +7,12 @@
     "dev": "vite --host 127.0.0.1",
     "build": "vite build && node scripts/offline.mjs",
     "preview": "vite preview --host 127.0.0.1",
-    "app:sync": "npm run build && cap sync",
+    "app:sync": "npm run build:app && cap sync",
     "app:ios": "npm run app:sync && cap open ios",
     "app:android": "npm run app:sync && cap open android",
     "app:check": "node --test tests/native-storage.test.js && node scripts/check-app.mjs",
-    "test:helper": "node --test tests/helper.test.js"
+    "test:helper": "node --test tests/helper.test.js",
+    "build:app": "vite build --mode native --outDir dist-native"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",
