@@ -17,3 +17,5 @@ New workout plans can be pasted or typed in Workouts. Blank sessions support add
 App ID remains com.shavitcoolfriend.app, version 2.0 build 3. Install the rebuilt app through Xcode. Enable 9 AM notifications in More and accept the iOS prompt. Native reminders use the official Capacitor LocalNotifications plugin and do not need a server. Real-device notification delivery still requires testing. App Store distribution still requires the owner's Apple Developer enrollment and release signing.
 
 The clothing interface and its background removal/photo dependencies have been removed. Previous versions remain in Git history; no new runtime imports old wardrobe data.
+
+Quality-of-life update (27 October 2026): plan-by-exercise builder, latest-result prefills, set input capture before completion, calendar jumps, history filters, plan search, save feedback, undo, numeric run-time entry and preservation of one-off workouts during weekly edits. Development-only `?sandbox=1` uses a separate disposable IndexedDB database; it is disabled in production and native builds.

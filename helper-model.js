@@ -90,3 +90,20 @@ export function addWorkoutToDay(state,date,activity,repeat=true){
  state.dayPlans[date]=[...current,structuredClone(activity)];
  if(activity.type==='lift'&&!state.templates.some(t=>t.name===activity.name))state.templates.push({id:uid(),name:activity.name,exercises:[]});
 }
+export function prepareExercises(state,template,date){
+ return structuredClone(template?.exercises??[]).map(exercise=>{
+  const last=previousExercise(state,exercise.name,date),positions={warmup:0,working:0};
+  exercise.sets=exercise.sets.map(set=>{const index=positions[set.kind]++,previous=last?.sets.filter(s=>s.kind===set.kind)[index];return {...set,kg:previous?.kg??set.kg,reps:previous?.reps??set.reps,done:false};});return exercise;
+ });
+}
+export function createSession(state,date,activity){
+ let template=state.templates.find(t=>t.name===activity.name);
+ if(activity.type==='lift'&&!template){template={id:uid(),name:activity.name,exercises:[]};state.templates.push(template);}
+ return {date,activityId:activity.id,type:activity.type,plan:activity.name,completed:false,syncPlan:activity.type==='lift'&&!template?.exercises.length,exercises:activity.type==='lift'?prepareExercises(state,template,date):[],km:0,minutes:0,note:''};
+}
+export function changeWeeklySchedule(state,next,today=dateKey()){
+ const old=state.schedule;
+ for(let key=state.start;key<today;key=shiftDate(key,1))if(!state.dayPlans[key])state.dayPlans[key]=structuredClone(old[localDate(key).getDay()]);
+ for(const key of Object.keys(state.dayPlans))if(key>=today){const weekday=localDate(key).getDay(),oldIds=new Set(old[weekday].map(a=>a.id));const extra=state.dayPlans[key].filter(a=>!oldIds.has(a.id));const merged=[...structuredClone(next[weekday]),...extra.filter(a=>!next[weekday].some(n=>n.id===a.id))];if(merged.length>10)throw new Error('A day has more than 10 activities. Keep room for its one-off workouts.');state.dayPlans[key]=merged;}
+ state.schedule=structuredClone(next);
+}
