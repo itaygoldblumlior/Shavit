@@ -37,7 +37,7 @@ export function parseWorkout(text,name,date){
  return {id:uid(),name:name.trim(),date,exercises};
 }
 export function previousExercise(state,name,before){
- return Object.values(state.sessions).filter(s=>s.date<before&&s.completed).sort((a,b)=>b.date.localeCompare(a.date)).flatMap(s=>s.exercises.map(e=>({...e,date:s.date}))).find(e=>e.name.trim().toLowerCase()===name.trim().toLowerCase());
+ return Object.values(state.sessions).filter(s=>s.date<before&&s.completed).sort((a,b)=>b.date.localeCompare(a.date)).flatMap(s=>(s.exercises??[]).map(e=>({...e,date:s.date}))).find(e=>e.name.trim().toLowerCase()===name.trim().toLowerCase());
 }
 export function streakStats(state,today=dateKey()){
  let current=0,best=0,total=Object.values(state.sessions).filter(s=>s.completed).length,missed=0;
@@ -106,4 +106,22 @@ export function changeWeeklySchedule(state,next,today=dateKey()){
  for(let key=state.start;key<today;key=shiftDate(key,1))if(!state.dayPlans[key])state.dayPlans[key]=structuredClone(old[localDate(key).getDay()]);
  for(const key of Object.keys(state.dayPlans))if(key>=today){const weekday=localDate(key).getDay(),oldIds=new Set(old[weekday].map(a=>a.id));const extra=state.dayPlans[key].filter(a=>!oldIds.has(a.id));const merged=[...structuredClone(next[weekday]),...extra.filter(a=>!next[weekday].some(n=>n.id===a.id))];if(merged.length>10)throw new Error('A day has more than 10 activities. Keep room for its one-off workouts.');state.dayPlans[key]=merged;}
  state.schedule=structuredClone(next);
+}
+
+// Match warm-ups and working sets independently, so adding a warm-up never shifts working-set history.
+export function previousSet(exercise,index,previous){
+ const set=exercise.sets[index];if(!set||!previous)return null;
+ const position=exercise.sets.slice(0,index).filter(s=>s.kind===set.kind).length;
+ return previous.sets.filter(s=>s.kind===set.kind)[position]??null;
+}
+export function weeklyRecap(state,anchor,today=dateKey()){
+ const start=shiftDate(anchor,-localDate(anchor).getDay()),end=shiftDate(start,6);
+ const until=end<today?end:today;
+ const sessions=Object.values(state.sessions).filter(s=>s.completed&&s.date>=start&&s.date<=until);
+ const lifts=sessions.filter(s=>s.type!=='run').length,runs=sessions.filter(s=>s.type==='run');
+ let tasksDone=0,tasksTotal=0,trainingDone=0,trainingTotal=0;
+ const days=Array.from({length:7},(_,i)=>{const date=shiftDate(start,i),future=date>today,beforeStart=date<state.start,activities=activitiesOn(state,date);const tasks=tasksOn(state,date);if(!future&&!beforeStart){tasksTotal+=tasks.length;tasksDone+=tasks.filter(t=>t.done.includes(date)).length;trainingTotal+=activities.length;trainingDone+=activities.filter(a=>state.sessions[sessionKey(date,a.id)]?.completed).length;}return {date,future,beforeStart,rest:activities.length===0,complete:!future&&!beforeStart&&dayComplete(state,date)};});
+ const wins=lifts+runs.length+tasksDone;
+ const message=wins===0?'A fresh page. One small thing is a good place to start.':trainingTotal>0&&trainingDone===trainingTotal?'You showed up for every planned session. Keep some room for rest, too.':`${wins} little ${wins===1?'win':'wins'} worth remembering. You’re making time for yourself.`;
+ return {start,end,partial:end>=today,lifts,runs:runs.length,km:Math.round(runs.reduce((n,s)=>n+(s.km||0),0)*100)/100,tasksDone,tasksTotal,trainingDone,trainingTotal,days,message};
 }
