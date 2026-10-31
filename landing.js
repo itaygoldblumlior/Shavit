@@ -1,7 +1,7 @@
 import {heroView} from './hero-view.js';
 import {howView} from './how-view.js';
 const face=`<img class="face" src="/helper-icon.svg" alt="Shavit’s smiling face">`;
-const howPage=location.pathname.endsWith('/how-it-works.html');
+const howPage=/how-it-works(?:\.html)?\/?$/.test(location.pathname);
 document.getElementById('app').innerHTML=howPage?howView(face):heroView(face,false);
 if(!howPage){
 document.querySelector('.welcome').classList.add('welcome-motion');
