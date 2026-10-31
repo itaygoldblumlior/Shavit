@@ -58,6 +58,7 @@ export function validateBackup(value){
  if(value.templates.some(t=>typeof t.name!=='string'||!checkExercises(t.exercises))||Object.entries(value.sessions).some(([key,s])=>!validKey(s.date)||(value.version===1?s.date!==key:(!['lift','run'].includes(s.type)||typeof s.activityId!=='string'||key!==sessionKey(s.date,s.activityId)))||typeof s.plan!=='string'||!checkExercises(s.exercises)||(s.type==='run'&&(!Number.isFinite(s.km??0)||s.km<0||s.km>1000||!Number.isFinite(s.minutes??0)||s.minutes<0||s.minutes>10000||(s.durationSeconds!==undefined&&(!Number.isInteger(s.durationSeconds)||s.durationSeconds<0||s.durationSeconds>600000))))))throw new Error('Invalid workout data.');
  if(value.tasks.some(t=>typeof t.id!=='string'||typeof t.name!=='string'||!Array.isArray(t.days)||t.days.some(d=>!Number.isInteger(d)||d<0||d>6)||!validKey(t.start)||!Array.isArray(t.done)||t.done.some(d=>!validKey(d))||(t.date&&!validKey(t.date))))throw new Error('Invalid tasks.');
  if(value.version===2&&(!value.dayPlans||Object.entries(value.dayPlans).some(([key,items])=>!validKey(key)||!validActivities(items))))throw new Error('Invalid daily schedule.');
+ if(value.runGoals!==undefined&&(!Array.isArray(value.runGoals)||value.runGoals.length>100||value.runGoals.some(g=>!validRunGoal(g))))throw new Error('Invalid running goals.');
  return migrateState(structuredClone(value));
 }
 
@@ -124,4 +125,37 @@ export function weeklyRecap(state,anchor,today=dateKey()){
  const wins=lifts+runs.length+tasksDone;
  const message=wins===0?'A fresh page. One small thing is a good place to start.':trainingTotal>0&&trainingDone===trainingTotal?'You showed up for every planned session. Keep some room for rest, too.':`${wins} little ${wins===1?'win':'wins'} worth remembering. You’re making time for yourself.`;
  return {start,end,partial:end>=today,lifts,runs:runs.length,km:Math.round(runs.reduce((n,s)=>n+(s.km||0),0)*100)/100,tasksDone,tasksTotal,trainingDone,trainingTotal,days,message};
+}
+
+export function swapExercise(state,session,index,name,permanent=false){
+ const current=session.exercises[index],title=String(name).trim();
+ if(!current||session.completed)throw new Error('Reopen the workout before swapping an exercise.');
+ if(!title||title.length>150)throw new Error('Enter an exercise name.');
+ if(title.toLowerCase()===current.name.trim().toLowerCase())throw new Error('Choose a different exercise.');
+ const original=current.routineOriginal??current;
+ const known=state.templates.flatMap(t=>t.exercises).find(e=>e.name.trim().toLowerCase()===title.toLowerCase());
+ const last=previousExercise(state,title,session.date);
+ const base=known??{name:title,note:'',sets:current.sets.map(s=>({kind:s.kind,kg:0,reps:0,done:false}))};
+ const replacement=prepareExercises(state,{exercises:[{...structuredClone(base),id:current.id,name:title}]},session.date)[0];
+ // A history-only exercise supplies its own set structure, never the replaced exercise's load.
+ if(!known&&last){replacement.note=last.note??'';replacement.sets=last.sets.map(s=>({...s,done:false}));}
+ delete replacement.routineOriginal;
+ const routine=state.templates.find(t=>t.name===session.plan);
+ if(permanent){if(routine){const target=routine.exercises.findIndex(e=>e.id===original.id||e.name===original.name);if(target>=0)routine.exercises[target]=structuredClone(replacement);else throw new Error('The original exercise is no longer in this routine. Swap for this day instead.');}}
+ else replacement.routineOriginal=structuredClone(original);
+ session.exercises[index]=replacement;
+ return replacement;
+}
+
+export function runComparison(state,run){
+ const previous=previousRuns(state,run),last=previous[0]??null;
+ const best=previous.reduce((best,r)=>!best||runSeconds(r)<runSeconds(best)?r:best,null);
+ return {previous,last,best,deltaLast:last&&runSeconds(run)>0?runSeconds(last)-runSeconds(run):null,deltaBest:best&&runSeconds(run)>0?runSeconds(best)-runSeconds(run):null};
+}
+export function validRunGoal(goal){return goal&&typeof goal.id==='string'&&Number.isFinite(goal.km)&&goal.km>0&&goal.km<=1000&&(goal.seconds===null||(Number.isInteger(goal.seconds)&&goal.seconds>0&&goal.seconds<=600000));}
+export function runGoalResult(state,goal,before=dateKey()){
+ const matches=Object.values(state.sessions).filter(r=>r.type==='run'&&r.completed&&r.date<=before&&r.km>0&&runSeconds(r)>0&&(goal.seconds===null||Math.round(r.km*100)===Math.round(goal.km*100)));
+ const achieved=matches.filter(r=>goal.seconds===null?r.km>=goal.km:runSeconds(r)<=goal.seconds).sort((a,b)=>b.date.localeCompare(a.date))[0]??null;
+ const best=matches.reduce((b,r)=>!b||(goal.seconds===null?r.km>b.km:runSeconds(r)<runSeconds(b))?r:b,null);
+ return {achieved,best,remaining:best&&goal.seconds!==null?Math.max(0,runSeconds(best)-goal.seconds):null};
 }
