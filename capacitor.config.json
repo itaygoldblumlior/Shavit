@@ -8,5 +8,14 @@
   },
   "android": {
     "allowMixedContent": false
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "presentationOptions": [
+        "banner",
+        "sound",
+        "list"
+      ]
+    }
   }
 }

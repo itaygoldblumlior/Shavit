@@ -26,7 +26,7 @@ Automatic background removal needs an internet connection for its first model do
 Support URL: https://shavitcoolfriend.com/support.html
 Privacy URL: https://shavitcoolfriend.com/privacy.html
 Marketing URL: https://shavitcoolfriend.com/
-Contact: itay200855@gmail.com
+Contact: shavitcoolfriend@gmail.com
 Suggested category: Lifestyle
 Apple keywords: wardrobe,outfit,clothes,style,colour,music,closet
 

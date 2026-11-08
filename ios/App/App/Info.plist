@@ -68,5 +68,13 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Connect your main calendar to keep your Shavit plans and calendar events in sync on your iPhone.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Connect your main calendar to keep your Shavit plans and calendar events in sync on your iPhone.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Show today’s steps from Apple Health, including steps recorded by your Apple Watch, against your personal daily goal.</string>
+	<key>ShavitHealthKitEnabled</key>
+	<false/>
 </dict>
 </plist>

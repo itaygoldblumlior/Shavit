@@ -25,12 +25,12 @@ export function dayComplete(state,date){const activities=activitiesOn(state,date
 export function parseWorkout(text,name,date){
  const exercises=[];let current=null;
  for(const line of text.split(/\n/).map(s=>s.trim()).filter(Boolean)){
-  const matches=[...line.matchAll(/(\d+(?:\.\d+)?)\s*[x×]\s*(\d+)/gi)];
+  const matches=[...line.matchAll(/(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)/gi)];
   if(!matches.length){if(current)current.note=[current.note,line].filter(Boolean).join(' ');continue;}
   const title=line.slice(0,matches[0].index).trim();
   if(title){current={id:uid(),name:title,note:'',sets:[]};exercises.push(current);}
   if(!current)throw new Error('Put an exercise name before its sets.');
-  for(const m of matches)current.sets.push({kind:current.sets.length?'working':'warmup',kg:Number(m[1]),reps:Number(m[2]),done:false});
+  for(const m of matches){if(!validReps(Number(m[2])))throw new Error('Reps must use whole or half numbers, like 6 or 6.5.');current.sets.push({kind:current.sets.length?'working':'warmup',kg:Number(m[1]),reps:Number(m[2]),done:false});}
   const tail=line.slice(matches.at(-1).index+matches.at(-1)[0].length).trim();if(tail)current.note=[current.note,tail].filter(Boolean).join(' ');
  }
  if(!exercises.length)throw new Error('Use one exercise per line, like: Bench press 40x8 60x6 60x6.');
@@ -48,16 +48,20 @@ export function streakStats(state,today=dateKey()){
  }
  return {current,best,total,missed};
 }
-export function tasksOn(state,key){return state.tasks.filter(t=>t.date===key||(!t.date&&t.days.includes(localDate(key).getDay())&&key>=t.start));}
+export function tasksOn(state,key){return state.tasks.filter(t=>!(t.excludedDates??[]).includes(key)&&(t.date===key||(!t.date&&t.days.includes(localDate(key).getDay())&&key>=t.start)));}
 export function validateBackup(value){
  if(!value||![1,2].includes(value.version)||!Array.isArray(value.schedule)||value.schedule.length!==7||!Array.isArray(value.templates)||!Array.isArray(value.tasks)||typeof value.sessions!=='object'||!value.sessions)throw new Error('This is not a Shavit helper backup.');
  const validActivities=items=>Array.isArray(items)&&items.length<=10&&new Set(items.map(a=>a.id)).size===items.length&&items.every(a=>typeof a.id==='string'&&a.id.length<=150&&typeof a.name==='string'&&a.name.trim()&&a.name.length<=80&&['lift','run'].includes(a.type));
  const validKey=k=>/^\d{4}-\d{2}-\d{2}$/.test(k)&&dateKey(localDate(k))===k;
  if(!validKey(value.start)||(value.version===1?value.schedule.some(x=>typeof x!=='string'||x.length>80):value.schedule.some(day=>!validActivities(day))))throw new Error('Invalid schedule.');
- const checkExercises=items=>Array.isArray(items)&&items.length<=100&&items.every(e=>typeof e.name==='string'&&e.name.length<=150&&Array.isArray(e.sets)&&e.sets.length<=50&&e.sets.every(s=>['warmup','working'].includes(s.kind)&&Number.isFinite(s.kg)&&s.kg>=0&&s.kg<=2000&&Number.isInteger(s.reps)&&s.reps>=0&&s.reps<=1000));
+ const checkExercises=items=>Array.isArray(items)&&items.length<=100&&items.every(e=>typeof e.name==='string'&&e.name.length<=150&&Array.isArray(e.sets)&&e.sets.length<=50&&e.sets.every(s=>['warmup','working'].includes(s.kind)&&Number.isFinite(s.kg)&&s.kg>=0&&s.kg<=2000&&validReps(s.reps)));
  if(value.templates.some(t=>typeof t.name!=='string'||!checkExercises(t.exercises))||Object.entries(value.sessions).some(([key,s])=>!validKey(s.date)||(value.version===1?s.date!==key:(!['lift','run'].includes(s.type)||typeof s.activityId!=='string'||key!==sessionKey(s.date,s.activityId)))||typeof s.plan!=='string'||!checkExercises(s.exercises)||(s.type==='run'&&(!Number.isFinite(s.km??0)||s.km<0||s.km>1000||!Number.isFinite(s.minutes??0)||s.minutes<0||s.minutes>10000||(s.durationSeconds!==undefined&&(!Number.isInteger(s.durationSeconds)||s.durationSeconds<0||s.durationSeconds>600000))))))throw new Error('Invalid workout data.');
  if(value.tasks.some(t=>typeof t.id!=='string'||typeof t.name!=='string'||!Array.isArray(t.days)||t.days.some(d=>!Number.isInteger(d)||d<0||d>6)||!validKey(t.start)||!Array.isArray(t.done)||t.done.some(d=>!validKey(d))||(t.date&&!validKey(t.date))))throw new Error('Invalid tasks.');
  if(value.version===2&&(!value.dayPlans||Object.entries(value.dayPlans).some(([key,items])=>!validKey(key)||!validActivities(items))))throw new Error('Invalid daily schedule.');
+ if(value.stepGoal!==undefined&&(!Number.isInteger(value.stepGoal)||value.stepGoal<1||value.stepGoal>100000))throw new Error('Invalid step goal.');
+ if(value.tasks.some(t=>(t.excludedDates!==undefined&&(!Array.isArray(t.excludedDates)||t.excludedDates.some(d=>!validKey(d))))||(t.calendarDuration!==undefined&&(!Number.isFinite(t.calendarDuration)||t.calendarDuration<=0))))throw new Error('Invalid calendar task.');
+ if(value.activityReminders!==undefined&&typeof value.activityReminders!=='boolean')throw new Error('Invalid reminder setting.');
+ if(value.tasks.some(t=>(t.notify!==undefined&&typeof t.notify!=='boolean')||(t.reminderAddedAt!==undefined&&(!Number.isFinite(t.reminderAddedAt)||t.reminderAddedAt<0))||(t.time&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(t.time))))throw new Error('Invalid task reminder.');
  if(value.runGoals!==undefined&&(!Array.isArray(value.runGoals)||value.runGoals.length>100||value.runGoals.some(g=>!validRunGoal(g))))throw new Error('Invalid running goals.');
  return migrateState(structuredClone(value));
 }
@@ -159,3 +163,32 @@ export function runGoalResult(state,goal,before=dateKey()){
  const best=matches.reduce((b,r)=>!b||(goal.seconds===null?r.km>b.km:runSeconds(r)<runSeconds(b))?r:b,null);
  return {achieved,best,remaining:best&&goal.seconds!==null?Math.max(0,runSeconds(best)-goal.seconds):null};
 }
+
+export const validReps=n=>Number.isFinite(n)&&n>=0&&n<=1000&&Number.isInteger(n*2);
+export function finishLiftingWorkout(state,session){
+ if(session.completed||session.type!=='lift'||!session.exercises.length||session.exercises.some(e=>!e.sets.length||e.sets.some(s=>!s.done||!validReps(s.reps)||s.reps<=0||!Number.isFinite(s.kg)||s.kg<0)))throw new Error('Add valid weights and reps and check every set before finishing.');
+ const plan=state.templates.find(t=>t.name===session.plan);
+ if(plan){for(const exercise of session.exercises){if(exercise.routineOriginal)continue;const target=plan.exercises.find(e=>e.id===exercise.id||e.name.trim().toLowerCase()===exercise.name.trim().toLowerCase());if(!target)continue;const positions={warmup:0,working:0};for(const set of target.sets){const position=positions[set.kind]++,result=exercise.sets.filter(s=>s.kind===set.kind)[position];if(result){set.kg=result.kg;set.reps=result.reps;}set.done=false;}}}
+ session.completed=true;
+}
+export function moveWorkout(state,from,to,activityId,mode='alongside',swapId=null,today=dateKey()){
+ if(from===to)throw new Error('Choose a different day.');
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(to)||dateKey(localDate(to))!==to||to<today)throw new Error('Choose today or a future date.');
+ const source=structuredClone(activitiesOn(state,from)),destination=structuredClone(activitiesOn(state,to));
+ const activity=source.find(a=>a.id===activityId);if(!activity)throw new Error('Workout not found.');
+ const session=state.sessions[sessionKey(from,activityId)];if(session?.completed)throw new Error('Completed workouts stay in your history.');
+ const other=mode==='swap'?destination.find(a=>a.id===swapId):null;
+ if(mode==='swap'&&!other)throw new Error('Choose the workout to swap with.');
+ const otherSession=other&&state.sessions[sessionKey(to,other.id)];if(otherSession?.completed)throw new Error('You cannot swap a completed workout.');
+ const left=source.filter(a=>a.id!==activityId),right=other?destination.filter(a=>a.id!==other.id):destination;
+ if(right.length>=10)throw new Error('The destination already has 10 activities.');
+ const moving={...activity,id:right.some(a=>a.id===activity.id)||state.sessions[sessionKey(to,activity.id)]&&other?.id!==activity.id?uid():activity.id};
+ const returning=other?{...other,id:left.some(a=>a.id===other.id)||state.sessions[sessionKey(from,other.id)]&&activityId!==other.id?uid():other.id}:null;
+ // All checks finish before mutating either day or any saved results.
+ state.dayPlans[from]=returning?[...left,returning]:left;state.dayPlans[to]=[...right,moving];
+ if(session)delete state.sessions[sessionKey(from,activityId)];if(otherSession)delete state.sessions[sessionKey(to,other.id)];
+ if(session)state.sessions[sessionKey(to,moving.id)]={...session,date:to,activityId:moving.id};
+ if(otherSession)state.sessions[sessionKey(from,returning.id)]={...otherSession,date:from,activityId:returning.id};
+ return moving;
+}
+export function taskInvitation(task,date){const label=localDate(date).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});return `Want to do this together?\n${task.name}\n${label}${task.time?' at '+task.time:''}\nPlanned with Shavit ☺`;}

@@ -11,8 +11,8 @@
     "app:ios": "npm run app:sync && cap open ios",
     "app:android": "npm run app:sync && cap open android",
     "app:check": "node --test tests/native-storage.test.js && node scripts/check-app.mjs",
-    "test:helper": "node --test tests/helper.test.js",
-    "build:app": "vite build --mode native --outDir dist-native"
+    "test:helper": "node --test tests/helper.test.js tests/reminders.test.js tests/calendar.test.js",
+    "build:app": "vite build --mode native --outDir dist-native && node scripts/native-pages.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",
