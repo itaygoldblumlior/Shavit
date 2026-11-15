@@ -1,1 +1,1 @@
-if(import.meta.env.MODE==='native'||import.meta.env.DEV){import('./helper.js');}else{import('./landing.js');}
+if(/how-it-works(?:\.html)?\/?$/.test(location.pathname)){import('./landing.js');}else{import('./helper.js');}
