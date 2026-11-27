@@ -30,6 +30,13 @@ export function emptyState() {
     reminder: false,
   };
 }
+export const THEMES = [
+  { id: 'midnight', name: 'Midnight notebook', note: 'Navy, cream and soft blue' },
+  { id: 'paper', name: 'Paper journal', note: 'Light paper, navy ink, orange' },
+  { id: 'coach', name: 'Night coach', note: 'Black and lime, bold' },
+];
+export const themeOf = (state) =>
+  THEMES.some((t) => t.id === state?.theme) ? state.theme : 'midnight';
 export const sessionKey = (date, id) => date + '|' + id;
 export function migrateState(value) {
   if (!value || value.version === 2) return value;

@@ -6,3 +6,4 @@ android/
 release-artifacts/
 package-lock.json
 app-store/
+public/themes.css
