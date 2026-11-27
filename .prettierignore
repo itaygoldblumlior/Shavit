@@ -1,0 +1,8 @@
+node_modules/
+dist/
+dist-native/
+ios/
+android/
+release-artifacts/
+package-lock.json
+app-store/

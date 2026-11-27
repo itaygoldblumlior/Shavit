@@ -11,11 +11,7 @@
   },
   "plugins": {
     "LocalNotifications": {
-      "presentationOptions": [
-        "banner",
-        "sound",
-        "list"
-      ]
+      "presentationOptions": ["banner", "sound", "list"]
     }
   }
 }

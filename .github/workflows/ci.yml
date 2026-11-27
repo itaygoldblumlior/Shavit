@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies (exact versions from package-lock.json)
         run: npm ci
 
+      - name: Code formatting (Prettier)
+        run: npm run format:check
+
       - name: Unit tests (model, reminders, calendar, backups)
         run: npm run test:helper
 

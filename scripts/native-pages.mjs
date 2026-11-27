@@ -1,2 +1,10 @@
 import fs from 'node:fs';
-const file='dist-native/privacy.html';let html=fs.readFileSync(file,'utf8');html=html.replace('Updated 26 October 2026','Updated 4 November 2026').replace('<h2>Imports and backups</h2>','<h2>Calendar connection (optional)</h2><p>With your permission, Shavit reads event titles and times from your main iPhone calendar and writes linked timed plans back to it. Calendar edits sync while Shavit is open and when you return. Linked deletions and conflicting edits require your choice. Your calendar provider may sync events according to your iPhone settings. Shavit does not upload calendar data to its own servers. Disconnect in More; existing events and records are kept.</p><h2>Imports and backups</h2>');fs.writeFileSync(file,html);
+const file = 'dist-native/privacy.html';
+let html = fs.readFileSync(file, 'utf8');
+html = html
+  .replace('Updated 26 October 2026', 'Updated 4 November 2026')
+  .replace(
+    '<h2>Imports and backups</h2>',
+    '<h2>Calendar connection (optional)</h2><p>With your permission, Shavit reads event titles and times from your main iPhone calendar and writes linked timed plans back to it. Calendar edits sync while Shavit is open and when you return. Linked deletions and conflicting edits require your choice. Your calendar provider may sync events according to your iPhone settings. Shavit does not upload calendar data to its own servers. Disconnect in More; existing events and records are kept.</p><h2>Imports and backups</h2>',
+  );
+fs.writeFileSync(file, html);
