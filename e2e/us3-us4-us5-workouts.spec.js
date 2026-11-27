@@ -32,6 +32,14 @@ test('US-4: a note with no sets is rejected with a clear message', async ({ page
   await expect(page.locator('#editor')).toBeVisible(); // nothing was saved
 });
 
+test('US-4: a text line above the first exercise is kept as its note', async ({ page }) => {
+  await createPlan(page, 'Upper', 'Go heavy today\nBench press 40x8 60x6');
+  await expect(page.locator('[data-plan-card]')).toContainText('1 exercise · 2 sets');
+  await goTo(page, 'today');
+  await page.getByRole('button', { name: 'Open Upper →' }).click();
+  await expect(page.locator('main')).toContainText('Go heavy today');
+});
+
 async function logEverySet(page) {
   for (const box of await page.locator('input[data-done]').all()) await box.check();
 }

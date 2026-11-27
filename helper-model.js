@@ -68,6 +68,8 @@ export function dayComplete(state, date) {
 export function parseWorkout(text, name, date) {
   const exercises = [];
   let current = null;
+  // Text before the first exercise is kept and becomes that exercise's note.
+  const leading = [];
   for (const line of text
     .split(/\n/)
     .map((s) => s.trim())
@@ -75,11 +77,17 @@ export function parseWorkout(text, name, date) {
     const matches = [...line.matchAll(/(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)/gi)];
     if (!matches.length) {
       if (current) current.note = [current.note, line].filter(Boolean).join(' ');
+      else leading.push(line);
       continue;
     }
     const title = line.slice(0, matches[0].index).trim();
     if (title) {
-      current = { id: uid(), name: title, note: '', sets: [] };
+      current = {
+        id: uid(),
+        name: title,
+        note: exercises.length ? '' : leading.join(' '),
+        sets: [],
+      };
       exercises.push(current);
     }
     if (!current) throw new Error('Put an exercise name before its sets.');
