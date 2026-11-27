@@ -1,0 +1,50 @@
+# CI: runs on every pull request and on every push to main.
+# If any step fails, the PR shows a red ❌ and should not be merged.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Cancel an older run of the same PR when a newer commit arrives.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    name: Test and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies (exact versions from package-lock.json)
+        run: npm ci
+
+      - name: Unit tests (model, reminders, calendar, backups)
+        run: npm run test:helper
+
+      - name: Build the website
+        run: npm run build
+
+      - name: Build the app bundle and copy it into the iOS/Android projects
+        run: npm run build:app && npx cap copy
+
+      - name: Native storage tests and app configuration checks
+        run: npm run app:check
+
+      - name: Keep the website build as a downloadable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: website-dist
+          path: dist
+          retention-days: 7

@@ -7,6 +7,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "vite build && node scripts/offline.mjs",
     "preview": "vite preview --host 127.0.0.1",
+    "test": "npm run test:helper && npm run app:check",
     "app:sync": "npm run build:app && cap sync",
     "app:ios": "npm run app:sync && cap open ios",
     "app:android": "npm run app:sync && cap open android",
