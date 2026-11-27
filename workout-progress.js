@@ -118,7 +118,7 @@ export function mountWorkoutGraph(root, points, metric = 'kg') {
       x2: x(selected),
       y1: top,
       y2: bottom,
-      stroke: '#8096ad',
+      stroke: 'var(--c-8096ad)',
       'stroke-dasharray': '3 5',
     });
     points.forEach((p, i) =>
@@ -127,7 +127,7 @@ export function mountWorkoutGraph(root, points, metric = 'kg') {
         cy: y(p[metric]),
         r: i === selected ? 5 : 3,
         fill: 'var(--blue)',
-        stroke: '#122033',
+        stroke: 'var(--c-122033)',
         'stroke-width': 2,
       }),
     );

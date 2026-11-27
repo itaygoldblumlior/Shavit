@@ -585,3 +585,20 @@ test('text lines before the first exercise are kept as a note, never dropped', (
   assert.equal(p.exercises[0].note, 'Go heavy today Rest 2 min Smooth reps');
   assert.equal(p.exercises[0].sets.length, 2);
 });
+
+test('themes: unknown or missing theme falls back to Midnight', async () => {
+  const { themeOf, THEMES } = await import('../helper-model.js');
+  assert.deepEqual(
+    THEMES.map((t) => t.id),
+    ['midnight', 'paper', 'coach'],
+  );
+  assert.equal(themeOf({}), 'midnight');
+  assert.equal(themeOf({ theme: 'paper' }), 'paper');
+  assert.equal(themeOf({ theme: '<script>' }), 'midnight');
+});
+
+test('helper.css uses theme variables, never raw colours (run npm run themes)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const css = readFileSync(new URL('../helper.css', import.meta.url), 'utf8');
+  assert.deepEqual(css.match(/#[0-9a-fA-F]{3,8}(?![\w-])/g) ?? [], []);
+});
