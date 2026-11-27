@@ -1,20 +1,41 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
-const config=JSON.parse(fs.readFileSync('capacitor.config.json'));
-assert.equal(config.appId,'com.shavitcoolfriend.app');
-assert.equal(config.webDir,'dist-native');
-assert(!config.server?.url,'Release app must contain its own bundled code');
-assert(!config.server?.cleartext,'Release app must not allow cleartext');
-for(const path of ['ios/App/App.xcodeproj/project.pbxproj','android/gradlew','ios/App/App/PrivacyInfo.xcprivacy','public/privacy.html','public/support.html'])assert(fs.existsSync(path),`${path} missing`);
-const privacy=fs.readFileSync('ios/App/App/PrivacyInfo.xcprivacy','utf8');
-assert(privacy.includes('CA92.1')&&privacy.includes('C617.1'));
-const plist=fs.readFileSync('ios/App/App/Info.plist','utf8');
-assert(!plist.includes('NSCameraUsageDescription')&&!plist.includes('NSPhotoLibraryUsageDescription'));
-assert(fs.readFileSync('helper-reminders.js','utf8').includes('hour:9,minute:0'));
-assert(fs.readFileSync('ios/App/CapApp-SPM/Package.swift','utf8').includes('CapacitorLocalNotifications'));
-const manifest=fs.readFileSync('android/app/src/main/AndroidManifest.xml','utf8');
+const config = JSON.parse(fs.readFileSync('capacitor.config.json'));
+assert.equal(config.appId, 'com.shavitcoolfriend.app');
+assert.equal(config.webDir, 'dist-native');
+assert(!config.server?.url, 'Release app must contain its own bundled code');
+assert(!config.server?.cleartext, 'Release app must not allow cleartext');
+for (const path of [
+  'ios/App/App.xcodeproj/project.pbxproj',
+  'android/gradlew',
+  'ios/App/App/PrivacyInfo.xcprivacy',
+  'public/privacy.html',
+  'public/support.html',
+])
+  assert(fs.existsSync(path), `${path} missing`);
+const privacy = fs.readFileSync('ios/App/App/PrivacyInfo.xcprivacy', 'utf8');
+assert(privacy.includes('CA92.1') && privacy.includes('C617.1'));
+const plist = fs.readFileSync('ios/App/App/Info.plist', 'utf8');
+assert(
+  !plist.includes('NSCameraUsageDescription') && !plist.includes('NSPhotoLibraryUsageDescription'),
+);
+assert(fs.readFileSync('helper-reminders.js', 'utf8').match(/hour:\s*9,\s*minute:\s*0/));
+assert(
+  fs
+    .readFileSync('ios/App/CapApp-SPM/Package.swift', 'utf8')
+    .includes('CapacitorLocalNotifications'),
+);
+const manifest = fs.readFileSync('android/app/src/main/AndroidManifest.xml', 'utf8');
 assert(manifest.includes('android:allowBackup="false"'));
-for(const permission of ['ACCESS_FINE_LOCATION','RECORD_AUDIO','READ_CONTACTS'])assert(!manifest.includes(permission));
-assert(fs.readFileSync('ios/App/App.xcodeproj/project.pbxproj','utf8').includes('PrivacyInfo.xcprivacy in Resources'));
-for(const platform of ['ios/App/App/public','android/app/src/main/assets/public'])assert(fs.existsSync(`${platform}/index.html`),`${platform} must be synced`);
-console.log('Native configuration, privacy declarations, permissions and bundled web files verified.');
+for (const permission of ['ACCESS_FINE_LOCATION', 'RECORD_AUDIO', 'READ_CONTACTS'])
+  assert(!manifest.includes(permission));
+assert(
+  fs
+    .readFileSync('ios/App/App.xcodeproj/project.pbxproj', 'utf8')
+    .includes('PrivacyInfo.xcprivacy in Resources'),
+);
+for (const platform of ['ios/App/App/public', 'android/app/src/main/assets/public'])
+  assert(fs.existsSync(`${platform}/index.html`), `${platform} must be synced`);
+console.log(
+  'Native configuration, privacy declarations, permissions and bundled web files verified.',
+);
