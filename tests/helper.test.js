@@ -578,3 +578,10 @@ test('exercise graph uses completed working sets, excludes warmups and supports 
   assert.equal(exerciseProgress(s, 'Press', 'week', '2026-11-04').length, 1);
   assert.equal(exerciseProgress(s, 'Press', 'all', '2026-11-04').length, 2);
 });
+
+test('text lines before the first exercise are kept as a note, never dropped', () => {
+  const p = parseWorkout('Go heavy today\nRest 2 min\nBench 40x8 60x6\nSmooth reps', 'Upper');
+  assert.equal(p.exercises.length, 1);
+  assert.equal(p.exercises[0].note, 'Go heavy today Rest 2 min Smooth reps');
+  assert.equal(p.exercises[0].sets.length, 2);
+});
