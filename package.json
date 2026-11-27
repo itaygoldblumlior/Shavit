@@ -15,7 +15,8 @@
     "test:helper": "node --test tests/helper.test.js tests/reminders.test.js tests/calendar.test.js",
     "build:app": "vite build --mode native --outDir dist-native && node scripts/native-pages.mjs",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",
@@ -29,6 +30,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "8.4.3",
+    "@playwright/test": "1.63.0",
     "prettier": "3.10.1",
     "vite": "6.4.3"
   }
