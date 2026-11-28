@@ -602,3 +602,39 @@ test('helper.css uses theme variables, never raw colours (run npm run themes)', 
   const css = readFileSync(new URL('../helper.css', import.meta.url), 'utf8');
   assert.deepEqual(css.match(/#[0-9a-fA-F]{3,8}(?![\w-])/g) ?? [], []);
 });
+
+test('timeline: places workouts as blocks and tasks as 30-minute slots, untimed apart', async () => {
+  const { timelineFor, emptyState, toMinutes, fromMinutes } = await import('../helper-model.js');
+  const state = emptyState();
+  state.start = '2026-11-01';
+  state.schedule[0] = [
+    { id: 'u', name: 'Upper', type: 'lift', time: '17:30', duration: 60 },
+    { id: 'r', name: 'Easy run', type: 'run' },
+  ];
+  state.tasks = [
+    { id: 't1', name: 'Read', time: '17:45', days: [0], date: '', start: '2026-11-01', done: [] },
+    {
+      id: 't2',
+      name: 'Call',
+      time: '',
+      days: [],
+      date: '2026-11-29',
+      start: '2026-11-29',
+      done: [],
+    },
+  ];
+  const { timed, untimed } = timelineFor(state, '2026-11-29');
+  assert.deepEqual(
+    timed.map((i) => [i.name, i.start, i.end, i.lane, i.lanes]),
+    [
+      ['Upper', 1050, 1110, 0, 2],
+      ['Read', 1065, 1095, 1, 2],
+    ],
+  );
+  assert.deepEqual(
+    untimed.map((i) => i.name),
+    ['Easy run', 'Call'],
+  );
+  assert.equal(toMinutes('24:00'), null);
+  assert.equal(fromMinutes(1050), '17:30');
+});

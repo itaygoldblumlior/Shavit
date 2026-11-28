@@ -9,6 +9,9 @@ import { exerciseProgress, progressExerciseNames, mountWorkoutGraph } from './wo
 import { renderWorkoutPhotos } from './workout-photo.js';
 import { heroView } from './hero-view.js';
 import {
+  timelineFor,
+  activityTime,
+  fromMinutes,
   THEMES,
   themeOf,
   weekdays,
@@ -175,10 +178,14 @@ $('editor-form').onsubmit = async (e) => {
 };
 const option = (v, selected) =>
   `<option value="${esc(v)}" ${v === selected ? 'selected' : ''}>${esc(v)}</option>`;
+const defaultTime = (type) => (type === 'run' ? '07:00' : '17:30');
+const timeField = (activity, index) =>
+  `<input type="time" data-time required aria-label="${weekdays[index]} ${esc(activity.name || activity.type)} start time" value="${esc(activity.time ?? defaultTime(activity.type))}">`;
 function scheduleRow(activity, index) {
+  const duration = esc(String(activity.duration ?? (activity.type === 'run' ? 45 : 60)));
   if (activity.type === 'run')
-    return `<div class="schedule-activity run-activity" data-row data-id="${esc(activity.id)}"><input type="hidden" data-type value="run"><input type="hidden" data-name value="Run"><span class="run-label">Run</span><button type="button" data-remove-activity aria-label="Remove Run">×</button></div>`;
-  return `<div class="schedule-activity" data-row data-id="${esc(activity.id)}"><label class="sr-only">Activity type</label><select data-type aria-label="${weekdays[index]} activity type">${option('lift', activity.type)}${option('run', activity.type)}</select><input data-name aria-label="${weekdays[index]} activity name" list="plan-names" required maxlength="80" placeholder="Upper, Lower, Full body…" value="${esc(activity.name)}"><button type="button" data-remove-activity aria-label="Remove ${esc(activity.name || 'activity')}">×</button></div>`;
+    return `<div class="schedule-activity run-activity" data-row data-id="${esc(activity.id)}" data-duration="${duration}"><input type="hidden" data-type value="run"><input type="hidden" data-name value="Run"><span class="run-label">Run</span>${timeField(activity, index)}<button type="button" data-remove-activity aria-label="Remove Run">×</button></div>`;
+  return `<div class="schedule-activity" data-row data-id="${esc(activity.id)}" data-duration="${duration}"><label class="sr-only">Activity type</label><select data-type aria-label="${weekdays[index]} activity type">${option('lift', activity.type)}${option('run', activity.type)}</select><input data-name aria-label="${weekdays[index]} activity name" list="plan-names" required maxlength="80" placeholder="Upper, Lower, Full body…" value="${esc(activity.name)}">${timeField(activity, index)}<button type="button" data-remove-activity aria-label="Remove ${esc(activity.name || 'activity')}">×</button></div>`;
 }
 function scheduleFields() {
   return `<p class="muted">Your split, your way. Name any workout and add as many activities as you need. Lift and run on the same day. Leave a day empty for rest.</p><datalist id="plan-names">${[...new Set([...state.templates.map((t) => t.name), 'Upper', 'Lower', 'Full body', 'Push', 'Pull', 'Legs', 'Easy run', 'Long run'])].map((n) => `<option value="${esc(n)}">`).join('')}</datalist>${weekdays.map((name, i) => `<section class="schedule-day"><h3>${name}</h3><div data-day-activities="${i}">${state.schedule[i].map((a) => scheduleRow(a, i)).join('')}</div><p class="muted rest-label" ${state.schedule[i].length ? 'hidden' : ''}>Rest day</p><button type="button" class="text-button" data-add-activity="${i}">＋ Add lift</button><button type="button" class="text-button" data-add-run="${i}">＋ Add run</button></section>`).join('')}`;
@@ -229,6 +236,8 @@ function readSchedule() {
       id: row.dataset.id,
       name: row.querySelector('[data-name]').value.trim(),
       type: row.querySelector('[data-type]').value,
+      time: row.querySelector('[data-time]').value,
+      duration: Number(row.dataset.duration) || 60,
     })),
   );
 }
@@ -286,7 +295,7 @@ function render() {
   $('app').innerHTML =
     `<main class="${sessionMode ? 'logging-mode' : ''}"><header class="top"><div><p class="eyebrow">SHAVIT · YOUR COOL FRIEND</p><h1>${view === 'today' ? (today ? 'Today' : weekdays[localDate(day).getDay()]) : view === 'plans' ? 'Your workouts' : view === 'progress' ? 'Look at you go.' : 'Your space'}</h1><span class="subtle">${view === 'today' ? localDate(day).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Small steps. Kept promises.'}</span></div>${face}</header>${
       view === 'today'
-        ? `<div class="datebar"><button class="text-button" id="prev-week" aria-label="Previous week">←</button><button class="text-button" id="today">${today ? 'Today' : 'Back to today'}</button><button class="text-button" id="choose-date" aria-label="Choose a date">Calendar</button><button class="text-button" id="next-week" aria-label="Next week">→</button></div><div class="week">${weekdays
+        ? `<div class="datebar planner-bar"><div class="pill"><button id="prev-week" aria-label="Previous week">‹</button><button id="choose-date" aria-label="Choose a date">${localDate(day).toLocaleDateString('en-GB', { month: 'long' })}</button><button id="next-week" aria-label="Next week">›</button></div><div class="pill"><button id="today">${today ? 'Today' : 'Back to today'}</button>${sessionMode ? '' : '<button id="add-task" aria-label="Add a task">＋</button>'}</div></div><div class="week">${weekdays
             .map((name, i) => {
               const key = shiftDate(start, i);
               return `<button class="day ${key === day ? 'selected' : ''} ${key === dateKey() ? 'today' : ''} ${dayComplete(state, key) ? 'done' : ''}" data-day="${key}" aria-label="${name} ${fmt(key)}, ${esc(plan(key))}"><small>${name.slice(0, 3)}</small><strong>${dayComplete(state, key) ? '✓' : localDate(key).getDate()}</strong><span class="dot">${plan(key) === 'Rest' ? 'Rest' : activitiesOn(state, key).length > 1 ? activitiesOn(state, key).length + ' plans' : 'Train'}</span></button>`;
@@ -327,34 +336,88 @@ function connectionsView() {
   if (!isIPhone()) return '';
   return `<section class="card"><h2>Your phone, connected.</h2><p class="muted">Optional. Calendar plans stay on this device.</p><h3>Main calendar</h3><p class="muted">${state.calendar?.enabled ? esc(state.calendar.name) : 'Bring events into your day and send timed Shavit plans to your main calendar.'}</p><details class="quiet-details"><summary>How calendar sync works</summary><p class="muted">Syncs while Shavit is open and when you return. New plans sync 30 days ahead. Deletions and conflicting edits ask for your review.</p></details>${state.calendar?.enabled ? `<button class="secondary" id="sync-calendar">Sync now</button><button class="text-button" id="disconnect-calendar">Disconnect calendar</button>${state.calendar.lastSync ? '<p class="muted">Last synced ' + new Date(state.calendar.lastSync).toLocaleString() + '</p>' : ''}` : '<button class="secondary" id="connect-calendar">Connect main calendar</button>'}${deviceError ? `<p class="error">${esc(deviceError)}</p>` : ''}${(state.calendar?.pending ?? []).map((p, i) => `<button class="secondary" data-calendar-review="${i}">Review ${p.kind.includes('delete') ? 'deletion' : 'change'} · ${esc(p.label)}</button>`).join('')}${healthEnabled ? `<h3>Apple Health</h3><p class="muted">Read today’s steps only. Your daily goal stays separate from tasks and training.</p><button class="secondary" id="connect-health">${state.healthConnected ? 'Refresh' : 'Connect'} Apple Health</button><button class="text-button" id="step-goal">Daily step goal · ${(state.stepGoal ?? 10000).toLocaleString()}</button>` : ''}</section>`;
 }
+const HOUR = 56;
 function todayView(stats) {
-  const activities = activitiesOn(state, day),
-    tasks = tasksOn(state, day),
-    progress = scheduleProgress(state, day);
-  return `${stepsView()}<section class="card schedule-progress" aria-label="Daily schedule progress"><h2>Your day, so far</h2><div class="schedule-totals"><p><strong>${progress.completed}<span class="done-word"> done</span></strong><span class="schedule-total"> / ${progress.total}</span></p><p class="schedule-left"><strong>${progress.left}</strong> <span>left</span></p></div><progress class="schedule-bar" max="${progress.total || 1}" value="${progress.completed}" aria-label="${progress.completed} of ${progress.total} schedule items completed"></progress><p class="schedule-caption">${progress.total ? (progress.left ? 'One thing at a time. You’ve got this.' : 'Everything planned, done. Nice work.') : 'A clear day. Add activities or tasks to make a plan.'}</p></section><section class="card streak"><strong class="number">${stats.current}</strong><div><p><b>Training days without a miss</b> ✦</p><p class="muted">Complete your scheduled activities. Rest days stay safe.</p></div></section><div class="section-head"><h2>Your training</h2><button id="add-day-workout" class="text-button">＋ Add workout</button></div>${
-    activities.length
-      ? activities
-          .map((a) => {
-            const session = state.sessions[sessionKey(day, a.id)];
-            return `<section class="card workout ${session?.completed ? 'workout-complete' : ''}"><div class="workout-top"><span class="eyebrow">${session?.completed ? 'COMPLETED ✓' : a.type === 'run' ? 'RUN' : 'LIFT'}</span>${!session?.completed ? `<div class="workout-day-actions">${state.calendar?.enabled ? `<button class="text-button" data-workout-time="${esc(a.id)}">Calendar time</button>` : ''}<button class="text-button" data-move-workout="${esc(a.id)}">Move day</button></div>` : ''}</div><h2>${esc(a.name)}</h2><p class="muted">${session?.completed ? 'Results saved. A promise kept.' : a.type === 'run' ? 'Mark it done when you’re back.' : `${(session?.exercises ?? state.templates.find((t) => t.name === a.name)?.exercises ?? []).length} exercises · kg + reps`}</p><button class="${session?.completed ? 'secondary' : 'primary'}" data-open-activity="${esc(a.id)}">${session?.completed ? 'View results' : session ? 'Continue' : 'Open'} ${esc(a.name)} →</button></section>`;
-          })
-          .join('')
-      : '<section class="card workout"><h2>A well-earned rest.</h2><p class="muted">Recovery belongs in your plan. Your streak stays safe.</p></section>'
-  }<div class="section-head"><h2>The rest of your day</h2><button id="add-task" class="text-button">＋ Add task</button></div><section class="card">${
-    tasks.length
-      ? [...tasks]
-          .sort(
-            (a, b) =>
-              Number(a.done.includes(day)) - Number(b.done.includes(day)) ||
-              (a.time || '99').localeCompare(b.time || '99'),
-          )
-          .map(
-            (t) =>
-              `<div class="row"><label class="check-hit"><input class="check" type="checkbox" data-task="${esc(t.id)}" aria-label="Complete ${esc(t.name)}" ${t.done.includes(day) ? 'checked' : ''}></label><div class="grow"><p class="${t.done.includes(day) ? 'complete' : ''}">${esc(t.name)}</p><small class="muted">${t.date ? 'One time' : t.days.length === 7 ? 'Every day' : t.days.map((d) => weekdays[d].slice(0, 3)).join(', ')}</small></div><span class="time">${esc(t.time || 'Anytime')}</span><button class="text-button" data-edit-task="${esc(t.id)}" aria-label="Edit ${esc(t.name)}">⋯</button></div>`,
-          )
-          .join('')
-      : `<div class="empty">A little space for everything else.<br>Add work, school, reading or a small win.</div>`
-  }</section>`;
+  const progress = scheduleProgress(state, day),
+    { timed, untimed } = timelineFor(state, day),
+    now = new Date(),
+    nowMin = day === dateKey() ? now.getHours() * 60 + now.getMinutes() : null;
+  const block = (i) => {
+    const style = `top:${(i.start / 60) * HOUR}px;height:${Math.max(((i.end - i.start) / 60) * HOUR - 3, 34)}px;left:calc(var(--gutter) + (100% - var(--gutter)) * ${i.lane} / ${i.lanes});width:calc((100% - var(--gutter)) / ${i.lanes} - 4px)`;
+    if (i.kind === 'task')
+      return `<div class="slot slot-task ${i.done ? 'is-done' : ''}" style="${style}"><label class="check-hit"><input class="check" type="checkbox" data-task="${esc(i.id)}" aria-label="Complete ${esc(i.name)}" ${i.done ? 'checked' : ''}></label><span class="grow">${esc(i.name)}</span><small>${esc(i.time)}</small><button class="text-button" data-edit-task="${esc(i.id)}" aria-label="Edit ${esc(i.name)}">⋯</button></div>`;
+    const session = state.sessions[sessionKey(day, i.id)];
+    const count = (
+      session?.exercises ??
+      state.templates.find((t) => t.name === i.name)?.exercises ??
+      []
+    ).length;
+    return `<div class="slot slot-workout ${session?.completed ? 'is-done' : ''} ${i.end - i.start < 60 ? 'short' : ''}" style="${style}"><button class="slot-open" data-open-activity="${esc(i.id)}" aria-label="${session?.completed ? 'View' : 'Open'} ${esc(i.name)} →"><strong>${esc(i.name)}${session?.completed ? ' ✓' : ''}</strong><small>${esc(i.time)} – ${fromMinutes(i.end % 1440)} · ${i.type === 'run' ? 'Run' : count + ' exercises'}</small></button><button class="text-button" data-time-activity="${esc(i.id)}" aria-label="Time for ${esc(i.name)}">⋯</button></div>`;
+  };
+  return `${stepsView()}<div class="day-summary"><p><strong>${progress.completed}</strong> of ${progress.total} done${stats.current ? ` · <span class="accent">✦ ${stats.current}-day streak</span>` : ''}</p><p class="schedule-caption">${progress.total ? (progress.left ? 'One thing at a time. You’ve got this.' : 'Everything planned, done. Nice work.') : 'A clear day. Tap ＋ to plan something.'}</p></div>${
+    untimed.length
+      ? `<button class="needs-time" id="place-times"><span>${untimed.length} ${untimed.length === 1 ? 'item needs' : 'items need'} a time</span><span class="accent">Place ${untimed.length === 1 ? 'it' : 'them'} →</span></button>`
+      : ''
+  }<section class="timeline" id="timeline" aria-label="Day timeline"><div class="timeline-grid" style="height:${24 * HOUR}px">${Array.from(
+    { length: 24 },
+    (_, h) => `<div class="hour" style="top:${h * HOUR}px"><span>${h}:00</span></div>`,
+  ).join(
+    '',
+  )}${nowMin === null ? '' : `<div class="now-line" style="top:${(nowMin / 60) * HOUR}px" aria-label="Now ${fromMinutes(nowMin)}"></div>`}${timed.map(block).join('')}</div></section>${
+    timed.length || untimed.length
+      ? ''
+      : '<p class="empty">A well-earned rest. Recovery belongs in your plan.</p>'
+  }`;
+}
+function placeTimesEditor() {
+  const { untimed } = timelineFor(state, day);
+  openEditor(
+    'Give everything a time',
+    `<p class="muted">Every task and workout lives at a time on your day. Workouts keep their time every week unless you change it.</p>${untimed
+      .map(
+        (i) =>
+          `<div class="fieldgrid"><div><label for="place-${esc(i.id)}">${esc(i.name)}</label><input id="place-${esc(i.id)}" type="time" required name="${i.kind}:${esc(i.id)}" value="${i.kind === 'task' ? '09:00' : defaultTime(i.type)}"></div>${i.kind === 'activity' ? `<div><label for="dur-${esc(i.id)}">Minutes</label><input id="dur-${esc(i.id)}" type="number" min="5" max="600" required name="duration:${esc(i.id)}" value="${i.type === 'run' ? 45 : 60}"></div>` : ''}</div>`,
+      )
+      .join('')}`,
+    (form) => {
+      for (const i of untimed) {
+        const time = form.get(`${i.kind}:${i.id}`);
+        if (i.kind === 'task') state.tasks.find((t) => t.id === i.id).time = time;
+        else setActivityTime(i.id, time, Number(form.get(`duration:${i.id}`)), false);
+      }
+    },
+  );
+}
+function setActivityTime(id, time, duration, onlyToday) {
+  if (onlyToday && !state.dayPlans[day])
+    state.dayPlans[day] = structuredClone(activitiesOn(state, day));
+  const list = state.dayPlans[day] ?? state.schedule[localDate(day).getDay()];
+  const a = list.find((a) => a.id === id);
+  a.time = time;
+  a.duration = duration;
+}
+function activityTimeEditor(id) {
+  const a = activitiesOn(state, day).find((a) => a.id === id),
+    t = activityTime(state, a) ?? {
+      time: defaultTime(a.type),
+      duration: a.type === 'run' ? 45 : 60,
+    },
+    weekly = !state.dayPlans[day];
+  openEditor(
+    `${esc(a.name)} · ${fmt(day)}`,
+    `<div class="fieldgrid"><div><label for="act-time">Start time</label><input id="act-time" name="time" type="time" required value="${esc(t.time)}"></div><div><label for="act-duration">Minutes</label><input id="act-duration" name="duration" type="number" min="5" max="600" required value="${t.duration}"></div></div>${weekly ? `<label class="repeat-workout"><input type="checkbox" name="only"> Only on ${fmt(day)} (otherwise every ${weekdays[localDate(day).getDay()]})</label>` : ''}<button type="button" class="secondary" id="move-from-time">Move to another day</button>`,
+    (form) => setActivityTime(id, form.get('time'), Number(form.get('duration')), form.has('only')),
+  );
+  $('move-from-time').onclick = () => moveWorkoutEditor(id);
+}
+function scrollTimeline() {
+  const box = $('timeline');
+  if (!box || box.dataset.scrolled) return;
+  const { timed } = timelineFor(state, day),
+    n = new Date(),
+    target = day === dateKey() ? n.getHours() * 60 + n.getMinutes() : (timed[0]?.start ?? 8 * 60);
+  box.scrollTop = Math.max(0, (target / 60 - 1) * HOUR);
+  box.dataset.scrolled = '1';
 }
 function workoutView() {
   const s = activeSession();
@@ -533,11 +596,17 @@ function progressView(stats) {
 function settingsView() {
   return `${connectionsView()}<section class="card"><h2>Your rhythm</h2><p class="muted">Sunday-start weeks · weights in kg</p><button class="secondary" id="edit-schedule">Edit weekly schedule</button>${isNative ? `<button class="secondary" id="activity-reminders">${state.activityReminders === false ? 'Enable' : 'Turn off'} task & gym reminders</button><details class="quiet-details"><summary>When reminders arrive</summary><p class="muted">Tasks: 45 minutes before, or about 2 minutes after adding a last-minute task. Gym: 19:00 on lifting days if no training is completed. Open Shavit regularly to refresh reminders.</p></details><button class="secondary" id="reminder">${state.reminder ? 'Turn off' : 'Enable'} 9:00 AM reminder</button><p class="muted">${isNative ? 'A daily nudge, scheduled on your phone.' : 'Daily background reminders are available in the installed iPhone app.'}</p>` : '<p class="muted">Calendar sync and background reminders are available in the iPhone app. Browser plans save here automatically.</p>'}</section><section class="card"><h2>Your look</h2><p class="muted">Pick a theme. It changes on this device only.</p><div class="theme-picks" role="group" aria-label="Theme">${THEMES.map((t) => `<button class="secondary theme-pick" data-theme-pick="${t.id}" aria-pressed="${themeOf(state) === t.id}"><span class="theme-swatch theme-swatch-${t.id}" aria-hidden="true"></span><span>${t.name}<small>${t.note}</small></span></button>`).join('')}</div></section><section class="card"><h2>Only on your device.</h2><p class="muted">No account and no cloud sync. Keep a backup before changing phones or clearing browser data. Your website and installed app store data separately.</p><button class="secondary" id="export">Export backup</button><button class="secondary" id="import">Import backup / workout file</button></section><section class="card"><h2>Hey, I’m still Shavit.</h2><button id="tutorial" class="secondary">Show me the basics</button><button id="meet-helper" class="secondary">Meet Shavit</button><p class="muted">Your day, your training, your cool friend.</p><details class="patch-notes"><summary>What’s new · 15 November</summary><ul><li>The planner and workouts are back on the website, with a first-time tutorial.</li><li>A calmer workout screen, searchable exercise swaps and unfinished tasks shown first.</li><li>Exercise progress graphs in Workouts, with weight, reps and time-range views.</li><li>Optional main-calendar sync with deletion and conflict reviews.</li><li>Move a workout for one day; choose to combine or swap when the destination is busy.</li><li>Half reps, task sharing, and task / evening gym reminders.</li><li>Completed workouts update the weights and reps in your routine.</li><li>Runs are now a simple done button.</li><li>Saved exercises appear as quick choices when swapping.</li><li>Swap an exercise just for this day, or update your saved routine.</li><li>Export your workout as a Notes-style image, with Shavit’s smile.</li><li>Previous kg and reps beside each set, matched by warm-up or working set.</li><li>A weekly recap in Progress, with runs, lifts, tasks and a note from Shavit.</li><li>A fresh Midnight notebook look: warm text, softer blues and journal-style headings.</li><li>Build workout plans one exercise at a time.</li><li>Previous weights and reps fill your next session.</li><li>Quick calendar jump, plan search and history filters.</li><li>Easier run time entry and larger phone controls.</li><li>Weekly edits keep one-off workouts in place.</li></ul></details><a href="/privacy.html">Privacy</a> · <a href="/support.html">Help</a></section>`;
 }
+function suggestedTime() {
+  if (day !== dateKey()) return '09:00';
+  const n = new Date(),
+    m = Math.min(Math.ceil((n.getHours() * 60 + n.getMinutes() + 1) / 30) * 30, 23 * 60 + 30);
+  return fromMinutes(m);
+}
 function taskEditor(id) {
   const t = state.tasks.find((t) => t.id === id);
   openEditor(
     t ? 'Edit task' : 'Make room for something',
-    `<label for="task-name">Task</label><input id="task-name" name="name" required maxlength="100" value="${esc(t?.name)}" placeholder="Read 10 pages"><div class="fieldgrid"><div><label for="task-time">Time (optional)</label><input id="task-time" name="time" type="time" value="${esc(t?.time)}"></div><div><label for="task-date">One-time date</label><input id="task-date" name="date" type="date" value="${t?.date ?? day}"></div></div><p class="muted">For a repeating task, choose days below. Otherwise it’s just for the date above.</p><div class="days-pick">${weekdays.map((d, i) => `<label><input type="checkbox" name="days" value="${i}" ${t && !t.date && t.days.includes(i) ? 'checked' : ''}>${d.slice(0, 3)}</label>`).join('')}</div><label class="repeat-workout"><input type="checkbox" name="notify" ${t?.notify === false ? '' : 'checked'}> Remind me before this task</label><p class="muted">For timed tasks: 45 minutes before. Last-minute additions get a reminder in about 2 minutes.</p>${t ? '<button type="button" id="share-task" class="secondary">Share via Messages / WhatsApp ↗</button><button type="button" id="delete-task" class="text-button">Remove task</button>' : ''}`,
+    `<label for="task-name">Task</label><input id="task-name" name="name" required maxlength="100" value="${esc(t?.name)}" placeholder="Read 10 pages"><div class="fieldgrid"><div><label for="task-time">Time</label><input id="task-time" name="time" type="time" required value="${esc(t?.time || suggestedTime())}"></div><div><label for="task-date">One-time date</label><input id="task-date" name="date" type="date" value="${t?.date ?? day}"></div></div><p class="muted">For a repeating task, choose days below. Otherwise it’s just for the date above.</p><div class="days-pick">${weekdays.map((d, i) => `<label><input type="checkbox" name="days" value="${i}" ${t && !t.date && t.days.includes(i) ? 'checked' : ''}>${d.slice(0, 3)}</label>`).join('')}</div><label class="repeat-workout"><input type="checkbox" name="notify" ${t?.notify === false ? '' : 'checked'}> Remind me before this task</label><p class="muted">For timed tasks: 45 minutes before. Last-minute additions get a reminder in about 2 minutes.</p>${t ? '<button type="button" id="share-task" class="secondary">Share via Messages / WhatsApp ↗</button><button type="button" id="delete-task" class="text-button">Remove task</button>' : ''}`,
     (form) => {
       const days = form.getAll('days').map(Number),
         task = {
@@ -1399,6 +1468,11 @@ function bind() {
       toast(e.message);
     }
   });
+  if ($('place-times')) $('place-times').onclick = placeTimesEditor;
+  document
+    .querySelectorAll('[data-time-activity]')
+    .forEach((b) => (b.onclick = () => activityTimeEditor(b.dataset.timeActivity)));
+  scrollTimeline();
   document.querySelectorAll('[data-theme-pick]').forEach(
     (b) =>
       (b.onclick = async () => {

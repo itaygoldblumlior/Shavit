@@ -147,6 +147,65 @@ export function tasksOn(state, key) {
       (t.date === key || (!t.date && t.days.includes(localDate(key).getDay()) && key >= t.start)),
   );
 }
+// ---- Timeline (Today as an hour-by-hour day) ----
+export const toMinutes = (time) =>
+  /^([01]\d|2[0-3]):[0-5]\d$/.test(time ?? '')
+    ? Number(time.slice(0, 2)) * 60 + Number(time.slice(3))
+    : null;
+export const fromMinutes = (m) =>
+  String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+export function activityTime(state, activity) {
+  const legacy = state.workoutTimes?.[activity.calendarUid];
+  const time = activity.time ?? legacy?.time ?? null;
+  const duration = activity.duration ?? legacy?.duration ?? 60;
+  return toMinutes(time) === null ? null : { time, duration: Math.min(Math.max(duration, 5), 600) };
+}
+/**
+ * Everything on a day, placed in time. Workouts are blocks with a length;
+ * tasks are 30-minute slots. Items that overlap get side-by-side lanes.
+ * Items without a time are returned separately so the user can place them.
+ */
+export function timelineFor(state, date) {
+  const timed = [],
+    untimed = [];
+  for (const a of activitiesOn(state, date)) {
+    const t = activityTime(state, a);
+    const item = { kind: 'activity', id: a.id, name: a.name, type: a.type };
+    if (!t) untimed.push(item);
+    else {
+      const start = toMinutes(t.time);
+      timed.push({ ...item, start, end: Math.min(start + t.duration, 24 * 60), time: t.time });
+    }
+  }
+  for (const task of tasksOn(state, date)) {
+    const item = { kind: 'task', id: task.id, name: task.name, done: task.done.includes(date) };
+    const start = toMinutes(task.time);
+    if (start === null) untimed.push(item);
+    else timed.push({ ...item, start, end: Math.min(start + 30, 24 * 60), time: task.time });
+  }
+  timed.sort((a, b) => a.start - b.start || b.end - a.end);
+  // Lanes: each item takes the first lane that is free at its start time.
+  let group = [],
+    groupEnd = -1;
+  const lanesEnd = [];
+  const closeGroup = () =>
+    group.forEach((i) => (i.lanes = Math.max(...group.map((g) => g.lane)) + 1));
+  for (const item of timed) {
+    if (item.start >= groupEnd) {
+      closeGroup();
+      group = [];
+      lanesEnd.length = 0;
+    }
+    let lane = lanesEnd.findIndex((end) => end <= item.start);
+    if (lane === -1) lane = lanesEnd.length;
+    lanesEnd[lane] = item.end;
+    item.lane = lane;
+    group.push(item);
+    groupEnd = Math.max(groupEnd, item.end);
+  }
+  closeGroup();
+  return { timed, untimed };
+}
 export function validateBackup(value) {
   if (
     !value ||
@@ -170,7 +229,10 @@ export function validateBackup(value) {
         typeof a.name === 'string' &&
         a.name.trim() &&
         a.name.length <= 80 &&
-        ['lift', 'run'].includes(a.type),
+        ['lift', 'run'].includes(a.type) &&
+        (a.time === undefined || toMinutes(a.time) !== null) &&
+        (a.duration === undefined ||
+          (Number.isInteger(a.duration) && a.duration >= 5 && a.duration <= 600)),
     );
   const validKey = (k) => /^\d{4}-\d{2}-\d{2}$/.test(k) && dateKey(localDate(k)) === k;
   if (
