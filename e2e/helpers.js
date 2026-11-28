@@ -29,10 +29,10 @@ export async function goTo(page, view) {
   await page.locator(`nav [data-view="${view}"]`).click();
 }
 
-// Workouts → Create plan, pasting a workout note.
+// Workouts → Build a plan, pasting a workout note.
 export async function createPlan(page, name, note) {
   await goTo(page, 'plans');
-  await page.getByRole('button', { name: '＋ Create plan' }).click();
+  await page.getByRole('button', { name: '＋ Build a plan' }).click();
   await page.locator('#plan-name').fill(name);
   await page.locator('.paste-plan summary').click();
   await page.locator('#plan-note').fill(note);
