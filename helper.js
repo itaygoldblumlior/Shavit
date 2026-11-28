@@ -453,9 +453,11 @@ function fitTimeline() {
   const box = $('timeline'),
     nav = document.querySelector('.nav');
   if (!box) return;
+  // Measure against the tab bar itself, not window.innerHeight: on iPhone (WebKit)
+  // innerHeight can include space the tab bar and safe area already cover.
   const top = box.getBoundingClientRect().top + window.scrollY,
-    navHeight = nav ? nav.getBoundingClientRect().height : 0;
-  box.style.height = Math.max(320, window.innerHeight - top - navHeight - 8) + 'px';
+    bottom = nav ? nav.getBoundingClientRect().top : window.innerHeight;
+  box.style.height = Math.max(320, bottom - top - 8) + 'px';
 }
 window.addEventListener('resize', () => fitTimeline());
 function scrollTimeline() {
