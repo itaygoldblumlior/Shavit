@@ -195,3 +195,26 @@ test('dates sent to the iPhone calendar have whole seconds (iOS rejects ".000Z")
   sent.push(item.start, item.end);
   for (const s of sent) assert.match(s, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
 });
+
+test('a timed Calendar event comes in as a Shavit event; an all-day one as a task', () => {
+  const s = fixture();
+  importCalendarEvent(s, {
+    id: 'a',
+    title: 'Dinner',
+    start: '2026-11-04T18:00:00Z',
+    end: '2026-11-04T20:30:00Z',
+    allDay: false,
+  });
+  importCalendarEvent(s, {
+    id: 'b',
+    title: 'Birthday',
+    start: '2026-11-04T00:00:00Z',
+    end: '2026-11-05T00:00:00Z',
+    allDay: true,
+  });
+  const dinner = s.tasks.find((t) => t.name === 'Dinner'),
+    birthday = s.tasks.find((t) => t.name === 'Birthday');
+  assert.equal(dinner.kind, 'event');
+  assert.equal(dinner.duration, 150);
+  assert.equal(birthday.kind, 'task');
+});

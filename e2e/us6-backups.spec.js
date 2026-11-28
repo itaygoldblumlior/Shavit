@@ -8,7 +8,8 @@ test('a backup moves plans and tasks into a brand-new browser', async ({ page, b
   await onboard(page);
   await createPlan(page, 'Upper', 'Bench press 40x8 60x6 60x6');
   await goTo(page, 'today');
-  await page.getByRole('button', { name: 'Add a task' }).click();
+  await page.getByRole('button', { name: 'Add a task or event' }).click();
+  await page.locator('#add-kind-task').click();
   await page.locator('#task-name').fill('Read 10 pages');
   await page.locator('#editor-save').click();
 

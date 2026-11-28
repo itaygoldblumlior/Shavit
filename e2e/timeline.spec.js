@@ -14,7 +14,8 @@ test('a workout is a block at its time, and tasks sit at theirs', async ({ page 
   // Onboarding gives a lift a default time of 17:30 for one hour.
   await expect(slot(page, 'Upper')).toContainText('17:30 – 18:30');
 
-  await page.getByRole('button', { name: 'Add a task' }).click();
+  await page.getByRole('button', { name: 'Add a task or event' }).click();
+  await page.locator('#add-kind-task').click();
   await page.locator('#task-name').fill('Coffee with Noa');
   await page.locator('#task-time').fill('08:00');
   await page.locator('#editor-save').click();
@@ -40,10 +41,33 @@ test('changing a workout’s time moves its block, every week', async ({ page })
 });
 
 test('a task needs a time', async ({ page }) => {
-  await page.getByRole('button', { name: 'Add a task' }).click();
+  await page.getByRole('button', { name: 'Add a task or event' }).click();
+  await page.locator('#add-kind-task').click();
   await page.locator('#task-name').fill('No time');
   await page.locator('#task-time').fill('');
   await page.locator('#editor-save').click();
   await expect(page.locator('#editor')).toBeVisible();
   await expect(slot(page, 'No time')).toHaveCount(0);
+});
+
+test('an event has a start and an end, and looks different from a task', async ({ page }) => {
+  await page.getByRole('button', { name: 'Add a task or event' }).click();
+  await page.locator('#add-kind-event').click();
+  await expect(page.locator('#editor')).toContainText('Add an event');
+  await page.locator('#task-name').fill('Dinner with Eitan');
+  await page.locator('#task-time').fill('20:00');
+  await page.locator('#task-end').fill('22:30');
+  await page.locator('#editor-save').click();
+
+  const event = page.locator('.slot-event', { hasText: 'Dinner with Eitan' });
+  await expect(event).toContainText('20:00 – 22:30');
+  const height = await event.evaluate((el) => el.getBoundingClientRect().height);
+  expect(height).toBeGreaterThan(120); // 2.5 hours tall, not a one-line task
+
+  // An event can't end before it starts.
+  await page.getByRole('button', { name: 'Edit Dinner with Eitan' }).click();
+  await expect(page.locator('#editor')).toContainText('Edit event');
+  await page.locator('#task-end').fill('19:00');
+  await page.locator('#editor-save').click();
+  await expect(page.locator('#editor-error')).toContainText('end after it starts');
 });

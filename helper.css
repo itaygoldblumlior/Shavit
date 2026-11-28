@@ -3077,3 +3077,67 @@ textarea:focus-visible {
   text-align: center;
   margin-top: 2px;
 }
+
+/* Events: a block with a start and an end, outlined so it reads differently from a workout */
+.slot-task .grow,
+.slot-event .grow {
+  flex: 1;
+  min-width: 0;
+}
+.slot-event {
+  align-items: flex-start;
+  padding: 4px 4px 4px 2px;
+  background: var(--panel);
+  border: 1.5px solid var(--blue);
+  border-left-width: 6px;
+}
+.slot-event .grow {
+  padding-top: 6px;
+}
+.slot-event strong {
+  display: block;
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.slot-event small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.slot-event.short {
+  align-items: center;
+}
+.slot-event.short .grow {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding-top: 0;
+}
+.slot-event.is-done strong {
+  text-decoration: line-through;
+}
+.add-choice {
+  display: grid;
+  gap: 10px;
+}
+.add-choice button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+  min-height: 72px;
+  padding: 14px 16px;
+}
+.add-choice small {
+  color: var(--muted);
+  font-weight: 400;
+}
+.hour span {
+  z-index: 3;
+}
+
+#editor-save[hidden] {
+  display: none;
+}
