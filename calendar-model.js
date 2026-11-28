@@ -7,6 +7,9 @@ import {
   activitiesOn,
   moveWorkout,
 } from './helper-model.js';
+// iOS's ISO8601DateFormatter rejects fractional seconds ("…00.000Z"), so dates
+// sent to the native calendar bridge must be whole seconds ("…00Z").
+export const isoSeconds = (date) => date.toISOString().replace(/\.\d{3}Z$/, 'Z');
 export const eventFingerprint = (e) => JSON.stringify([e.title, e.start, e.end, !!e.allDay]);
 export const eventKey = (e) => e.id + '|' + e.start;
 export function eventDates(date, time, duration = 30, allDay = false) {
@@ -21,7 +24,7 @@ export function eventDates(date, time, duration = 30, allDay = false) {
         start.getDate() + Math.max(1, Math.round(duration / 1440)),
       ).getTime(),
     );
-  return { start: start.toISOString(), end: end.toISOString(), allDay };
+  return { start: isoSeconds(start), end: isoSeconds(end), allDay };
 }
 export function localCalendarItems(state, from, to) {
   const result = [];

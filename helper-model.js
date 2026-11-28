@@ -156,8 +156,9 @@ export const fromMinutes = (m) =>
   String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
 export function activityTime(state, activity) {
   const legacy = state.workoutTimes?.[activity.calendarUid];
-  const time = activity.time ?? legacy?.time ?? null;
-  const duration = activity.duration ?? legacy?.duration ?? 60;
+  // A Calendar-synced time for this one day (iPhone) wins over the weekly time.
+  const time = legacy?.time ?? activity.time ?? null;
+  const duration = legacy?.duration ?? activity.duration ?? 60;
   return toMinutes(time) === null ? null : { time, duration: Math.min(Math.max(duration, 5), 600) };
 }
 /**
