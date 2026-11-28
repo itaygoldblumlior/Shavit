@@ -709,3 +709,60 @@ test('workouts tab: which days a plan is scheduled, and when it was last done', 
   assert.equal(lastDone(state, 'Legs'), '2026-11-28');
   assert.equal(lastDone(state, 'Push'), null);
 });
+
+test('plan screen: last result, reorder and start now', async () => {
+  const { lastResult, moveExercise, startPlanToday, emptyState, activitiesOn } =
+    await import('../helper-model.js');
+  const state = emptyState();
+  state.sessions = {
+    a: {
+      date: '2026-11-20',
+      completed: true,
+      plan: 'Upper',
+      exercises: [
+        {
+          name: 'Bench press',
+          sets: [
+            { kg: 40, reps: 8 },
+            { kg: 60, reps: 6 },
+          ],
+        },
+      ],
+    },
+    b: {
+      date: '2026-11-27',
+      completed: true,
+      plan: 'Upper',
+      exercises: [
+        {
+          name: 'Bench press',
+          sets: [
+            { kg: 62.5, reps: 5 },
+            { kg: 62.5, reps: 6 },
+          ],
+        },
+      ],
+    },
+  };
+  assert.deepEqual(lastResult(state, 'bench press'), { date: '2026-11-27', kg: 62.5, reps: 6 });
+  assert.equal(lastResult(state, 'Squat'), null);
+
+  const t = { name: 'Upper', exercises: [{ name: 'A' }, { name: 'B' }, { name: 'C' }] };
+  moveExercise(t, 0, 2);
+  assert.deepEqual(
+    t.exercises.map((e) => e.name),
+    ['B', 'C', 'A'],
+  );
+  moveExercise(t, 2, 9); // out of range: no change
+  assert.deepEqual(
+    t.exercises.map((e) => e.name),
+    ['B', 'C', 'A'],
+  );
+
+  state.templates = [t];
+  const today = '2026-11-28'; // a Saturday with nothing scheduled
+  const first = startPlanToday(state, t, today);
+  assert.equal(activitiesOn(state, today).length, 1);
+  assert.equal(startPlanToday(state, t, today).id, first.id); // no duplicate
+  assert.equal(state.schedule[6].length, 0); // weekly schedule untouched
+});

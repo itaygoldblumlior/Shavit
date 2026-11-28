@@ -3468,3 +3468,112 @@ html.app .slot:active {
 .list-row[hidden] {
   display: none;
 }
+/* Plan screen */
+.plan-hero {
+  margin: 4px 0 18px;
+}
+.plan-hero h2 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 400;
+  font-size: 34px;
+  margin: 4px 0 6px;
+}
+.plan-hero .primary {
+  width: 100%;
+  margin-top: 14px;
+  min-height: 52px;
+}
+.hint {
+  color: var(--muted);
+  font-size: 12px;
+  margin: -4px 4px 8px;
+}
+.ex-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+}
+.ex-item {
+  position: relative;
+  border-bottom: 1px solid var(--line);
+  transition: transform 0.18s ease;
+}
+.ex-item:last-child {
+  border-bottom: 0;
+}
+.ex-item.dragging {
+  transition: none;
+  z-index: 2;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 35%);
+}
+.ex-remove {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 88px;
+  border: 0;
+  border-radius: 0;
+  background: var(--now);
+  color: var(--bg);
+  font-weight: 600;
+}
+.ex-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 64px;
+  padding: 10px 14px 10px 4px;
+  background: var(--panel);
+  color: var(--text);
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: transform 0.2s ease;
+}
+.ex-row.swiping {
+  transition: none;
+}
+.ex-remove:focus-visible + .ex-row {
+  transform: translateX(-88px);
+}
+.ex-row .grow {
+  flex: 1;
+  min-width: 0;
+}
+.ex-row strong {
+  display: block;
+  font-size: 17px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.ex-row small {
+  color: var(--muted);
+  font-size: 13px;
+}
+.ex-row .row-side {
+  text-align: right;
+  display: grid;
+}
+.ex-row .row-side b {
+  color: var(--blue);
+  font-size: 14px;
+  white-space: nowrap;
+}
+.drag {
+  width: 40px;
+  min-height: 44px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 22px;
+  touch-action: none;
+  cursor: grab;
+}
+.ex-remove {
+  opacity: 0;
+}
+.ex-item.open .ex-remove,
+.ex-item:has(.swiping) .ex-remove,
+.ex-remove:focus-visible {
+  opacity: 1;
+}

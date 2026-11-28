@@ -21,6 +21,9 @@ hideSplash();
 import { heroView } from './hero-view.js';
 import {
   planDays,
+  lastResult,
+  moveExercise,
+  startPlanToday,
   lastDone,
   taskKind,
   eventDuration,
@@ -82,6 +85,7 @@ let deviceTimer,
   stepUpdated = '',
   healthEnabled = false;
 let workoutTab = 'plans',
+  openPlanId = null,
   graphRange = 'month',
   graphMetric = 'kg',
   graphExercise = '',
@@ -579,6 +583,8 @@ function runView(s) {
 }
 
 function plansView() {
+  const openPlan = workoutTab === 'plans' && state.templates.find((t) => t.id === openPlanId);
+  if (openPlan) return planDetailView(openPlan);
   const names = progressExerciseNames(state);
   if (!names.includes(graphExercise)) graphExercise = names[0] ?? '';
   const points = exerciseProgress(state, graphExercise, graphRange),
@@ -612,6 +618,24 @@ function plansView() {
             )}</div><div class="graph-metrics" role="group" aria-label="Progress measure"><button data-graph-metric="kg" aria-pressed="${graphMetric === 'kg'}">Weight</button><button data-graph-metric="reps" aria-pressed="${graphMetric === 'reps'}">Reps</button></div>${last ? `<p class="graph-latest">${last[graphMetric]} <small>${graphMetric === 'kg' ? 'kg' : 'reps'} · latest</small></p><p class="muted">${last[graphMetric] - first[graphMetric] >= 0 ? '+' : ''}${last[graphMetric] - first[graphMetric]} ${graphMetric === 'kg' ? 'kg' : 'reps'} since ${fmt(first.date)}</p><p class="muted">${graphMetric === 'kg' ? 'Heaviest working set per session' : 'Reps in the heaviest working set'} · warm-ups excluded</p><div id="workout-graph"><div class="workout-plot"><svg role="img" aria-label="Exercise progress"></svg><button data-chart-tap aria-label="Tap the graph or use arrow keys to inspect a session"></button></div><div class="graph-selection"><button data-point-prev aria-label="Previous session">←</button><span data-chart-detail aria-live="polite"></span><button data-point-next aria-label="Next session">→</button></div></div><p class="graph-note">Look at you showing up.</p>` : '<p class="empty">No completed working sets in this period. Log a workout or choose another range to see your progress.</p>'}`
   }`;
 }
+const setsLabel = (sets) =>
+  sets.length
+    ? sets.map((x) => (x.kg ? `${x.kg}×${x.reps}` : `${x.reps} reps`)).join(' · ')
+    : 'No sets yet';
+function planDetailView(t) {
+  const days = planDays(state, t.name),
+    sets = t.exercises.reduce((n, e) => n + e.sets.length, 0);
+  return `<button class="back" id="back-plans">← All plans</button><section class="plan-hero"><p class="eyebrow">${days.length ? days.map(shortDay).join(' · ') : 'Not scheduled'}</p><h2>${esc(t.name)}</h2><p class="muted">${t.exercises.length} ${t.exercises.length === 1 ? 'exercise' : 'exercises'} · ${sets} sets · ${lastDoneLabel(lastDone(state, t.name))}</p><button class="primary" id="start-plan" ${t.exercises.length ? '' : 'disabled'}>Start now</button></section><p class="list-label">EXERCISES · ${t.exercises.length}</p>${
+    t.exercises.length
+      ? `<p class="hint">Drag ≡ to reorder · swipe left to remove</p><ol class="list ex-list" id="ex-list">${t.exercises
+          .map((e, i) => {
+            const last = lastResult(state, e.name);
+            return `<li class="ex-item" data-ex-index="${i}"><button class="ex-remove" data-remove-ex="${i}" aria-label="Remove ${esc(e.name)}">Remove</button><div class="ex-row"><button class="drag" data-drag="${i}" aria-label="Reorder ${esc(e.name)}. Use the arrow keys.">≡</button><span class="grow"><strong>${esc(e.name)}</strong><small>${setsLabel(e.sets)}</small></span><span class="row-side"><small>${last ? 'last' : ''}</small><b>${last ? `${last.kg ? last.kg + ' kg × ' : ''}${last.reps}` : 'new'}</b></span></div></li>`;
+          })
+          .join('')}</ol>`
+      : '<p class="muted">No exercises yet. Add your first one.</p>'
+  }<div class="quick-add"><button class="secondary" id="add-exercise">＋ Add exercise</button><button class="secondary" id="edit-plan-text">Edit as text</button></div>`;
+}
 const shortDay = (d) => weekdays[d].slice(0, 3);
 function lastDoneLabel(date) {
   if (!date) return 'not done yet';
@@ -630,7 +654,7 @@ function routinesView() {
           .map((t) => {
             const days = planDays(state, t.name),
               sets = t.exercises.reduce((n, e) => n + e.sets.length, 0);
-            return `<button class="list-row" data-plan-card data-plan="${esc(t.id)}" data-search="${esc((t.name + ' ' + t.exercises.map((e) => e.name).join(' ')).toLowerCase())}" aria-label="Edit ${esc(t.name)} plan"><span class="grow"><strong>${esc(t.name)}</strong><small>${t.exercises.length} ${t.exercises.length === 1 ? 'exercise' : 'exercises'} · ${sets} sets</small></span><span class="row-side"><b>${days.length ? days.map(shortDay).join(' · ') : 'Not scheduled'}</b><small>${lastDoneLabel(lastDone(state, t.name))}</small></span><span class="chev" aria-hidden="true">›</span></button>`;
+            return `<button class="list-row" data-plan-card data-plan="${esc(t.id)}" data-search="${esc((t.name + ' ' + t.exercises.map((e) => e.name).join(' ')).toLowerCase())}" aria-label="Open ${esc(t.name)} plan"><span class="grow"><strong>${esc(t.name)}</strong><small>${t.exercises.length} ${t.exercises.length === 1 ? 'exercise' : 'exercises'} · ${sets} sets</small></span><span class="row-side"><b>${days.length ? days.map(shortDay).join(' · ') : 'Not scheduled'}</b><small>${lastDoneLabel(lastDone(state, t.name))}</small></span><span class="chev" aria-hidden="true">›</span></button>`;
           })
           .join(
             '',
@@ -780,6 +804,167 @@ function taskEditor(id, newKind = 'task') {
         keepScroll();
       });
     };
+}
+// Plan screen: Start now, add, reorder (drag ≡ or arrow keys), swipe left to remove.
+function bindPlanDetail() {
+  const t = state.templates.find((x) => x.id === openPlanId);
+  if (!t || !$('back-plans')) return;
+  const save = async (focusIndex) => {
+    await persist();
+    render();
+    if (focusIndex !== undefined) document.querySelector(`[data-drag="${focusIndex}"]`)?.focus();
+  };
+  $('back-plans').onclick = () => {
+    openPlanId = null;
+    render();
+  };
+  $('edit-plan-text').onclick = () => planEditor(t.id);
+  $('start-plan').onclick = async () => {
+    const activity = startPlanToday(state, t, dateKey());
+    day = dateKey();
+    activeId = activity.id;
+    if (!activeSession()) state.sessions[activeKey()] = createSession(state, day, activity);
+    view = 'today';
+    sessionMode = true;
+    await persist();
+    render();
+    window.scrollTo(0, 0);
+  };
+  $('add-exercise').onclick = () =>
+    openEditor(
+      `Add to ${t.name}`,
+      `<label for="new-ex-name">Exercise</label><input id="new-ex-name" name="name" required maxlength="80" placeholder="Bench press" list="known-exercises"><datalist id="known-exercises">${progressExerciseNames(
+        state,
+      )
+        .map((n) => `<option value="${esc(n)}">`)
+        .join(
+          '',
+        )}</datalist><label for="new-ex-sets">Sets (kg x reps)</label><input id="new-ex-sets" name="sets" required placeholder="40x8 60x6 60x6" inputmode="text" autocomplete="off"><p class="muted">The first set counts as a warm-up.</p>`,
+      async (form) => {
+        const name = form.get('name').trim().replace(/\d.*$/, '').trim();
+        if (!name) throw new Error('Name the exercise.');
+        if (t.exercises.some((e) => e.name.toLowerCase() === name.toLowerCase()))
+          throw new Error('That exercise is already in this plan.');
+        const [exercise] = parseWorkout(`${name} ${form.get('sets')}`, t.name).exercises;
+        t.exercises.push(exercise);
+      },
+      'Add exercise',
+    );
+  const remove = async (i) => {
+    const [removed] = t.exercises.splice(i, 1);
+    await save();
+    toast(`Removed ${removed.name}.`, async () => {
+      t.exercises.splice(i, 0, removed);
+      await save();
+    });
+  };
+  document
+    .querySelectorAll('[data-remove-ex]')
+    .forEach((b) => (b.onclick = () => remove(Number(b.dataset.removeEx))));
+  document.querySelectorAll('[data-drag]').forEach((handle) => {
+    const from = Number(handle.dataset.drag);
+    handle.onkeydown = (e) => {
+      const to = e.key === 'ArrowUp' ? from - 1 : e.key === 'ArrowDown' ? from + 1 : null;
+      if (to === null || to < 0 || to >= t.exercises.length) return;
+      e.preventDefault();
+      moveExercise(t, from, to);
+      selectFeel();
+      save(to);
+    };
+    handle.onpointerdown = (e) => {
+      e.preventDefault();
+      const items = [...document.querySelectorAll('.ex-item')],
+        item = items[from],
+        height = item.getBoundingClientRect().height,
+        startY = e.clientY;
+      let to = from;
+      handle.setPointerCapture(e.pointerId);
+      item.classList.add('dragging');
+      handle.onpointermove = (m) => {
+        const dy = m.clientY - startY,
+          next = Math.max(0, Math.min(items.length - 1, from + Math.round(dy / height)));
+        item.style.transform = `translateY(${dy}px)`;
+        if (next !== to) selectFeel();
+        to = next;
+        items.forEach((other, k) => {
+          if (k === from) return;
+          const shift =
+            from < to && k > from && k <= to
+              ? -height
+              : from > to && k < from && k >= to
+                ? height
+                : 0;
+          other.style.transform = shift ? `translateY(${shift}px)` : '';
+        });
+      };
+      handle.onpointerup = handle.onpointercancel = () => {
+        handle.onpointermove = handle.onpointerup = handle.onpointercancel = null;
+        if (to === from) {
+          items.forEach((other) => (other.style.transform = ''));
+          item.classList.remove('dragging');
+          return;
+        }
+        moveExercise(t, from, to);
+        save();
+      };
+    };
+  });
+  document.querySelectorAll('.ex-item').forEach((item) => {
+    const row = item.querySelector('.ex-row'),
+      i = Number(item.dataset.exIndex),
+      OPEN = 88;
+    let startX = null,
+      startY = 0,
+      base = 0,
+      dx = 0,
+      swiping = false;
+    row.onpointerdown = (e) => {
+      if (e.target.closest('[data-drag]')) return;
+      document.querySelectorAll('.ex-item.open').forEach((other) => {
+        if (other !== item) {
+          other.classList.remove('open');
+          other.querySelector('.ex-row').style.transform = '';
+        }
+      });
+      startX = e.clientX;
+      startY = e.clientY;
+      base = item.classList.contains('open') ? -OPEN : 0;
+      dx = 0;
+      swiping = false;
+    };
+    row.onpointermove = (e) => {
+      if (startX === null) return;
+      const mx = e.clientX - startX,
+        my = e.clientY - startY;
+      if (!swiping) {
+        if (Math.abs(my) > 10 && Math.abs(my) > Math.abs(mx)) return (startX = null); // scrolling
+        if (Math.abs(mx) < 10) return;
+        swiping = true;
+        row.setPointerCapture(e.pointerId);
+        row.classList.add('swiping');
+      }
+      dx = Math.min(0, base + mx);
+      row.style.transform = `translateX(${dx}px)`;
+    };
+    row.onpointerup = row.onpointercancel = () => {
+      if (startX === null) return;
+      startX = null;
+      row.classList.remove('swiping');
+      if (!swiping) return;
+      const width = row.getBoundingClientRect().width;
+      if (dx < -width * 0.55) {
+        row.style.transform = `translateX(${-width}px)`;
+        tapFeel();
+        setTimeout(() => remove(i), 160);
+      } else if (dx < -OPEN / 2) {
+        item.classList.add('open');
+        row.style.transform = `translateX(${-OPEN}px)`;
+      } else {
+        item.classList.remove('open');
+        row.style.transform = '';
+      }
+    };
+  });
 }
 function planEditor(id, text = '') {
   const t = state.templates.find((t) => t.id === id),
@@ -1258,6 +1443,7 @@ function bind() {
   document.querySelectorAll('[data-view]').forEach(
     (b) =>
       (b.onclick = () => {
+        if (view === 'plans' && b.dataset.view === 'plans') openPlanId = null; // tap again: back to the list
         view = b.dataset.view;
         sessionMode = false;
         render();
@@ -1541,9 +1727,15 @@ function bind() {
   );
   on('add-plan', () => planEditor());
   on('notes-plan', () => $('import-notes').click());
-  document
-    .querySelectorAll('[data-plan]')
-    .forEach((b) => (b.onclick = () => planEditor(b.dataset.plan)));
+  document.querySelectorAll('[data-plan]').forEach(
+    (b) =>
+      (b.onclick = () => {
+        openPlanId = b.dataset.plan;
+        render();
+        window.scrollTo(0, 0);
+      }),
+  );
+  bindPlanDetail();
   document.querySelectorAll('[data-history]').forEach(
     (b) =>
       (b.onclick = () => {

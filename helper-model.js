@@ -168,6 +168,31 @@ export function lastDone(state, name) {
       .at(-1) ?? null
   );
 }
+// Plan screen: the best set from the last time an exercise was done.
+export function lastResult(state, name, before = '9999-12-31') {
+  const last = previousExercise(state, name, before);
+  if (!last) return null;
+  const sets = last.sets.filter((s) => s.done !== false && s.reps > 0);
+  if (!sets.length) return null;
+  const best = sets.reduce((a, b) => (b.kg > a.kg || (b.kg === a.kg && b.reps > a.reps) ? b : a));
+  return { date: last.date, kg: best.kg, reps: best.reps };
+}
+export function moveExercise(template, from, to) {
+  if (from === to || from < 0 || to < 0) return;
+  if (from >= template.exercises.length || to >= template.exercises.length) return;
+  const [item] = template.exercises.splice(from, 1);
+  template.exercises.splice(to, 0, item);
+}
+// "Start now": today's activity for this plan, added to today only when missing.
+export function startPlanToday(state, template, today = dateKey()) {
+  const existing = activitiesOn(state, today).find(
+    (a) => a.type === 'lift' && a.name === template.name,
+  );
+  if (existing) return existing;
+  const activity = { id: uid(), name: template.name, type: 'lift' };
+  addWorkoutToDay(state, today, activity, false);
+  return activity;
+}
 export const toMinutes = (time) =>
   /^([01]\d|2[0-3]):[0-5]\d$/.test(time ?? '')
     ? Number(time.slice(0, 2)) * 60 + Number(time.slice(3))
