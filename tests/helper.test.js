@@ -666,3 +666,26 @@ test('timeline: an event spans its start to its end; old Calendar imports count 
   );
   assert.equal(taskKind({ calendarOrigin: true, calendarAllDay: true }), 'task');
 });
+
+test('workout photo uses the chosen theme colours, exercise names in the accent', async () => {
+  const { workoutPhotoRows, photoPalette } = await import('../workout-photo.js');
+  assert.deepEqual(photoPalette('coach'), {
+    bg: '#0d0e10',
+    text: '#f4f4f0',
+    muted: '#9a9ea6',
+    accent: '#d4ff3a',
+  });
+  assert.equal(photoPalette('unknown').bg, '#122033');
+  const rows = workoutPhotoRows({
+    completed: true,
+    exercises: [{ name: 'Sldl', sets: [{ kg: 100, reps: 6, kind: 'working', done: true }] }],
+  });
+  assert.deepEqual(
+    rows.map((r) => [r.text, r.name]),
+    [
+      ['Sldl', true],
+      ['100 × 6', false],
+      ['', false],
+    ],
+  );
+});
