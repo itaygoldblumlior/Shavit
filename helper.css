@@ -3331,3 +3331,26 @@ html.app .slot:active {
   justify-content: flex-start;
   min-width: 0;
 }
+
+/* Slimmer week strip: same information, less height */
+.week {
+  padding: 4px 0;
+  margin: 4px 0 8px;
+}
+.day {
+  padding: 3px 1px;
+  min-height: 0;
+  gap: 1px;
+}
+.day small {
+  font-size: 10px;
+}
+.day strong {
+  font-size: 15px;
+  width: 30px;
+  height: 30px;
+  line-height: 30px;
+}
+.day .dot {
+  font-size: 8.5px;
+}
