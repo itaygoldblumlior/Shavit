@@ -325,7 +325,11 @@ function render() {
     stats = streakStats(state),
     start = shiftDate(day, -localDate(day).getDay());
   $('app').innerHTML =
-    `<main class="${sessionMode ? 'logging-mode' : ''}"><header class="top"><div><p class="eyebrow">SHAVIT · YOUR COOL FRIEND</p><h1>${view === 'today' ? (today ? 'Today' : weekdays[localDate(day).getDay()]) : view === 'plans' ? 'Your workouts' : view === 'progress' ? 'Look at you go.' : 'Your space'}</h1><span class="subtle">${view === 'today' ? localDate(day).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Small steps. Kept promises.'}</span></div>${face}</header>${
+    `<main class="${sessionMode ? 'logging-mode' : ''}"><header class="top ${view === 'today' ? 'compact' : ''}"><div>${
+      view === 'today'
+        ? `<h1>${today ? 'Today' : weekdays[localDate(day).getDay()]} <span class="h1-date">· ${localDate(day).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</span></h1>`
+        : `<h1>${view === 'plans' ? 'Your workouts' : view === 'progress' ? 'Look at you go.' : 'Your space'}</h1><span class="subtle">Small steps. Kept promises.</span>`
+    }</div>${face}</header>${
       view === 'today'
         ? `<div class="datebar planner-bar"><div class="pill"><button id="prev-week" aria-label="Previous week">‹</button><button id="choose-date" aria-label="Choose a date">${localDate(day).toLocaleDateString('en-GB', { month: 'long' })}</button><button id="next-week" aria-label="Next week">›</button></div><div class="pill"><button id="today">${today ? 'Today' : 'Back to today'}</button>${sessionMode ? '' : '<button id="add-task" aria-label="Add a task or event">＋</button>'}</div></div><div class="week">${weekdays
             .map((name, i) => {
@@ -346,7 +350,7 @@ function render() {
     ]
       .map(
         ([id, icon, name]) =>
-          `<button data-view="${id}" class="${view === id ? 'active' : ''}" ${view === id ? 'aria-current="page"' : ''}><span>${navIcon(id)}</span>${name}</button>`,
+          `<button data-view="${id}" class="${view === id ? 'active' : ''}" aria-label="${name}" ${view === id ? 'aria-current="page"' : ''}><span aria-hidden="true">${navIcon(id)}</span></button>`,
       )
       .join('')}</nav>`;
   bind();
@@ -377,7 +381,7 @@ function todayView(stats) {
   const block = (i) => {
     const style = `top:${(i.start / 60) * HOUR}px;height:${Math.max(((i.end - i.start) / 60) * HOUR - 3, 34)}px;left:calc(var(--gutter) + (100% - var(--gutter)) * ${i.lane} / ${i.lanes});width:calc((100% - var(--gutter)) / ${i.lanes} - 4px)`;
     if (i.kind === 'event')
-      return `<div class="slot slot-event ${i.done ? 'is-done' : ''} ${i.end - i.start < 60 ? 'short' : ''}" style="${style}"><label class="check-hit"><input class="check" type="checkbox" data-task="${esc(i.id)}" aria-label="Complete ${esc(i.name)}" ${i.done ? 'checked' : ''}></label><span class="grow"><strong>${esc(i.name)}</strong><small>${esc(i.time)} – ${fromMinutes(i.end % 1440)}</small></span><button class="text-button" data-edit-task="${esc(i.id)}" aria-label="Edit ${esc(i.name)}">⋯</button></div>`;
+      return `<div class="slot slot-event ${i.done ? 'is-done' : ''} ${i.end - i.start < 60 ? 'short' : ''} ${i.lanes > 1 ? 'narrow' : ''}" style="${style}"><button class="event-open grow" data-edit-task="${esc(i.id)}" aria-label="Edit ${esc(i.name)}"><strong>${esc(i.name)}</strong><small>${esc(i.time)} – ${fromMinutes(i.end % 1440)}</small></button><label class="check-hit"><input class="check" type="checkbox" data-task="${esc(i.id)}" aria-label="Complete ${esc(i.name)}" ${i.done ? 'checked' : ''}></label></div>`;
     if (i.kind === 'task')
       return `<div class="slot slot-task ${i.done ? 'is-done' : ''}" style="${style}"><label class="check-hit"><input class="check" type="checkbox" data-task="${esc(i.id)}" aria-label="Complete ${esc(i.name)}" ${i.done ? 'checked' : ''}></label><span class="grow">${esc(i.name)}</span><small>${esc(i.time)}</small><button class="text-button" data-edit-task="${esc(i.id)}" aria-label="Edit ${esc(i.name)}">⋯</button></div>`;
     const session = state.sessions[sessionKey(day, i.id)];
@@ -444,7 +448,23 @@ function activityTimeEditor(id) {
   );
   $('move-from-time').onclick = () => moveWorkoutEditor(id);
 }
+// The timeline fills the screen from where it starts down to the tab bar.
+function fitTimeline() {
+  const box = $('timeline'),
+    nav = document.querySelector('.nav');
+  if (!box) return;
+  // Measure against the tab bar itself, not window.innerHeight: on iPhone (WebKit)
+  // innerHeight can include space the tab bar and safe area already cover.
+  const top = box.getBoundingClientRect().top + window.scrollY,
+    bottom = nav ? nav.getBoundingClientRect().top : window.innerHeight;
+  box.style.height = Math.max(180, bottom - top - 8) + 'px';
+}
+window.addEventListener('resize', () => fitTimeline());
 function scrollTimeline() {
+  fitTimeline();
+  // Safari can still move things after the first layout (fonts, safe areas): measure again.
+  requestAnimationFrame(() => requestAnimationFrame(fitTimeline));
+  document.fonts?.ready.then(fitTimeline).catch(() => {});
   const box = $('timeline');
   if (!box || box.dataset.scrolled) return;
   const { timed } = timelineFor(state, day),

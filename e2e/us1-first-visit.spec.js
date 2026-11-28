@@ -22,14 +22,13 @@ test('a new visitor sees the welcome page, sets a schedule and gets the 5-step t
   await expect(tour).toBeHidden();
 
   // The planner opens on today.
-  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
-  await expect(page.getByText('Sunday 29 November')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Today · Sun 29 Nov' })).toBeVisible();
 });
 
 test('the tour shows only once, and can be replayed from More', async ({ page }) => {
   await onboard(page);
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^Today/ })).toBeVisible();
   await expect(page.locator('#shavit-tutorial')).toHaveCount(0);
 
   await goTo(page, 'settings');

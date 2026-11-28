@@ -3204,3 +3204,130 @@ html.app .slot:active {
     animation: none;
   }
 }
+
+/* ---- Compact Today header: more room for the timeline ---- */
+.top.compact {
+  padding-top: 6px;
+  margin-bottom: 6px;
+  align-items: center;
+}
+.top.compact h1 {
+  font-size: 30px;
+  line-height: 1.1;
+  margin: 0;
+}
+.top.compact .h1-date {
+  font-family: inherit;
+  font-size: 17px;
+  color: var(--muted);
+  letter-spacing: 0;
+}
+.top.compact .face {
+  width: 40px;
+  height: 40px;
+}
+.top.compact + .datebar,
+.compact ~ .datebar {
+  margin-top: 4px;
+}
+.planner-bar {
+  margin-bottom: 4px;
+}
+.week {
+  padding-block: 4px;
+}
+.day-summary {
+  padding: 6px 0 4px;
+}
+.timeline {
+  max-height: none;
+  margin-top: 8px;
+}
+/* Narrow side-by-side blocks: wrap names onto two lines instead of cutting them. */
+.slot-event strong,
+.slot-workout .slot-open strong {
+  white-space: normal;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow-wrap: break-word;
+  word-break: normal;
+  line-height: 1.2;
+}
+.slot-event small,
+.slot-workout .slot-open small {
+  display: block;
+}
+
+/* Icon-only tab bar: shorter, more room for the day. Names stay as aria-labels. */
+.nav {
+  padding-top: 6px;
+}
+.nav button {
+  min-height: 44px;
+  font-size: 0;
+}
+.nav svg {
+  width: 26px;
+  height: 26px;
+}
+
+/* Events: the whole block opens the event; the checkbox sits top-right. */
+.slot-event .event-open {
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  text-align: left;
+  background: none;
+  border: 0;
+  color: inherit;
+  padding: 6px 4px 6px 10px;
+}
+.slot-event .check-hit {
+  min-width: 36px;
+  min-height: 36px;
+}
+.slot-event strong {
+  overflow-wrap: break-word;
+  -webkit-line-clamp: 3;
+}
+.slot-event.narrow .check-hit {
+  min-width: 30px;
+}
+.slot-event.narrow .check-hit .check {
+  width: 22px;
+  height: 22px;
+}
+.slot-event.narrow strong {
+  font-size: 14px;
+}
+
+.slot-event .event-open {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 2px;
+  min-height: 0;
+}
+.slot-event.narrow {
+  padding: 2px;
+}
+.slot-event.narrow .event-open {
+  padding: 6px 6px 30px 8px;
+}
+.slot-event.narrow .check-hit {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  min-width: 32px;
+  min-height: 32px;
+}
+.slot-workout .slot-open {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  min-width: 0;
+}
