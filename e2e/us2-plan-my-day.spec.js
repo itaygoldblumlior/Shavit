@@ -8,7 +8,8 @@ test.beforeEach(async ({ page }) => {
 });
 
 async function addTask(page, name, { repeatOn = [] } = {}) {
-  await page.getByRole('button', { name: 'Add a task' }).click();
+  await page.getByRole('button', { name: 'Add a task or event' }).click();
+  await page.locator('#add-kind-task').click();
   await page.locator('#task-name').fill(name);
   for (const day of repeatOn) await page.locator(`input[name="days"][value="${day}"]`).check();
   await page.locator('#editor-save').click();

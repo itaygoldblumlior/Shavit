@@ -148,6 +148,9 @@ export function tasksOn(state, key) {
   );
 }
 // ---- Timeline (Today as an hour-by-hour day) ----
+// A task is a to-do at a time; an event (meeting friends, a class) has a start and an end.
+export const taskKind = (t) => t.kind ?? (t.calendarOrigin && !t.calendarAllDay ? 'event' : 'task');
+export const eventDuration = (t) => t.duration ?? t.calendarDuration ?? 60;
 export const toMinutes = (time) =>
   /^([01]\d|2[0-3]):[0-5]\d$/.test(time ?? '')
     ? Number(time.slice(0, 2)) * 60 + Number(time.slice(3))
@@ -179,10 +182,12 @@ export function timelineFor(state, date) {
     }
   }
   for (const task of tasksOn(state, date)) {
-    const item = { kind: 'task', id: task.id, name: task.name, done: task.done.includes(date) };
+    const kind = taskKind(task);
+    const item = { kind, id: task.id, name: task.name, done: task.done.includes(date) };
     const start = toMinutes(task.time);
+    const length = kind === 'event' ? Math.max(eventDuration(task), 15) : 30;
     if (start === null) untimed.push(item);
-    else timed.push({ ...item, start, end: Math.min(start + 30, 24 * 60), time: task.time });
+    else timed.push({ ...item, start, end: Math.min(start + length, 24 * 60), time: task.time });
   }
   timed.sort((a, b) => a.start - b.start || b.end - a.end);
   // Lanes: each item takes the first lane that is free at its start time.

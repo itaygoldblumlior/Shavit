@@ -638,3 +638,31 @@ test('timeline: places workouts as blocks and tasks as 30-minute slots, untimed 
   assert.equal(toMinutes('24:00'), null);
   assert.equal(fromMinutes(1050), '17:30');
 });
+
+test('timeline: an event spans its start to its end; old Calendar imports count as events', async () => {
+  const { timelineFor, emptyState, taskKind } = await import('../helper-model.js');
+  const state = emptyState();
+  const base = { days: [], date: '2026-11-29', start: '2026-11-29', done: [] };
+  state.tasks = [
+    { ...base, id: 'e', name: 'Dinner', time: '20:00', kind: 'event', duration: 150 },
+    {
+      ...base,
+      id: 'c',
+      name: 'Meeting',
+      time: '09:00',
+      calendarOrigin: true,
+      calendarDuration: 45,
+    },
+    { ...base, id: 't', name: 'Read', time: '21:00' },
+  ];
+  const { timed } = timelineFor(state, '2026-11-29');
+  assert.deepEqual(
+    timed.map((i) => [i.name, i.kind, i.start, i.end]),
+    [
+      ['Meeting', 'event', 540, 585],
+      ['Dinner', 'event', 1200, 1350],
+      ['Read', 'task', 1260, 1290],
+    ],
+  );
+  assert.equal(taskKind({ calendarOrigin: true, calendarAllDay: true }), 'task');
+});

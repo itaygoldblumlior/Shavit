@@ -40,7 +40,7 @@ export function localCalendarItems(state, from, to) {
         ...eventDates(
           date,
           task.time,
-          task.calendarDuration ?? 30,
+          task.duration ?? task.calendarDuration ?? 30,
           task.calendarAllDay && !task.time,
         ),
       });
@@ -83,6 +83,8 @@ export function importCalendarEvent(state, event) {
     calendarExternalId: event.externalId ?? '',
     calendarAllDay: !!event.allDay,
     calendarDuration: Math.max(1, Math.round((new Date(event.end) - start) / 60000)),
+    kind: event.allDay ? 'task' : 'event',
+    duration: Math.max(1, Math.round((new Date(event.end) - start) / 60000)),
   };
   state.tasks.push(task);
   return { localId: 'task:' + id, kind: 'task', taskId: id, date, ...event };
@@ -120,6 +122,7 @@ export function applyCalendarEvent(state, item, event) {
     task.time = time;
     task.calendarAllDay = event.allDay;
     task.calendarDuration = duration;
+    if (task.kind === 'event' || !event.allDay) task.duration = duration;
     return { ...item, date };
   }
   const current = activitiesOn(state, item.date).find((a) => a.id === item.activityId);

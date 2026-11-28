@@ -9,9 +9,12 @@ import { exerciseProgress, progressExerciseNames, mountWorkoutGraph } from './wo
 import { renderWorkoutPhotos } from './workout-photo.js';
 import { heroView } from './hero-view.js';
 import {
+  taskKind,
+  eventDuration,
   timelineFor,
   activityTime,
   fromMinutes,
+  toMinutes,
   THEMES,
   themeOf,
   weekdays,
@@ -153,10 +156,11 @@ function openEditor(title, html, action, save = 'Save') {
   $('editor-title').textContent = title;
   $('editor-content').innerHTML = html;
   $('editor-error').textContent = '';
-  $('editor-save').textContent = save;
+  $('editor-save').hidden = save === null;
+  $('editor-save').textContent = save ?? '';
   $('editor-save').disabled = false;
   editorAction = action;
-  $('editor').showModal();
+  if (!$('editor').open) $('editor').showModal();
 }
 $('close-editor').onclick = () => $('editor').close();
 $('editor').addEventListener('close', () => scheduleDeviceRefresh());
@@ -295,7 +299,7 @@ function render() {
   $('app').innerHTML =
     `<main class="${sessionMode ? 'logging-mode' : ''}"><header class="top"><div><p class="eyebrow">SHAVIT · YOUR COOL FRIEND</p><h1>${view === 'today' ? (today ? 'Today' : weekdays[localDate(day).getDay()]) : view === 'plans' ? 'Your workouts' : view === 'progress' ? 'Look at you go.' : 'Your space'}</h1><span class="subtle">${view === 'today' ? localDate(day).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Small steps. Kept promises.'}</span></div>${face}</header>${
       view === 'today'
-        ? `<div class="datebar planner-bar"><div class="pill"><button id="prev-week" aria-label="Previous week">‹</button><button id="choose-date" aria-label="Choose a date">${localDate(day).toLocaleDateString('en-GB', { month: 'long' })}</button><button id="next-week" aria-label="Next week">›</button></div><div class="pill"><button id="today">${today ? 'Today' : 'Back to today'}</button>${sessionMode ? '' : '<button id="add-task" aria-label="Add a task">＋</button>'}</div></div><div class="week">${weekdays
+        ? `<div class="datebar planner-bar"><div class="pill"><button id="prev-week" aria-label="Previous week">‹</button><button id="choose-date" aria-label="Choose a date">${localDate(day).toLocaleDateString('en-GB', { month: 'long' })}</button><button id="next-week" aria-label="Next week">›</button></div><div class="pill"><button id="today">${today ? 'Today' : 'Back to today'}</button>${sessionMode ? '' : '<button id="add-task" aria-label="Add a task or event">＋</button>'}</div></div><div class="week">${weekdays
             .map((name, i) => {
               const key = shiftDate(start, i);
               return `<button class="day ${key === day ? 'selected' : ''} ${key === dateKey() ? 'today' : ''} ${dayComplete(state, key) ? 'done' : ''}" data-day="${key}" aria-label="${name} ${fmt(key)}, ${esc(plan(key))}"><small>${name.slice(0, 3)}</small><strong>${dayComplete(state, key) ? '✓' : localDate(key).getDate()}</strong><span class="dot">${plan(key) === 'Rest' ? 'Rest' : activitiesOn(state, key).length > 1 ? activitiesOn(state, key).length + ' plans' : 'Train'}</span></button>`;
@@ -344,6 +348,8 @@ function todayView(stats) {
     nowMin = day === dateKey() ? now.getHours() * 60 + now.getMinutes() : null;
   const block = (i) => {
     const style = `top:${(i.start / 60) * HOUR}px;height:${Math.max(((i.end - i.start) / 60) * HOUR - 3, 34)}px;left:calc(var(--gutter) + (100% - var(--gutter)) * ${i.lane} / ${i.lanes});width:calc((100% - var(--gutter)) / ${i.lanes} - 4px)`;
+    if (i.kind === 'event')
+      return `<div class="slot slot-event ${i.done ? 'is-done' : ''} ${i.end - i.start < 60 ? 'short' : ''}" style="${style}"><label class="check-hit"><input class="check" type="checkbox" data-task="${esc(i.id)}" aria-label="Complete ${esc(i.name)}" ${i.done ? 'checked' : ''}></label><span class="grow"><strong>${esc(i.name)}</strong><small>${esc(i.time)} – ${fromMinutes(i.end % 1440)}</small></span><button class="text-button" data-edit-task="${esc(i.id)}" aria-label="Edit ${esc(i.name)}">⋯</button></div>`;
     if (i.kind === 'task')
       return `<div class="slot slot-task ${i.done ? 'is-done' : ''}" style="${style}"><label class="check-hit"><input class="check" type="checkbox" data-task="${esc(i.id)}" aria-label="Complete ${esc(i.name)}" ${i.done ? 'checked' : ''}></label><span class="grow">${esc(i.name)}</span><small>${esc(i.time)}</small><button class="text-button" data-edit-task="${esc(i.id)}" aria-label="Edit ${esc(i.name)}">⋯</button></div>`;
     const session = state.sessions[sessionKey(day, i.id)];
@@ -602,16 +608,37 @@ function suggestedTime() {
     m = Math.min(Math.ceil((n.getHours() * 60 + n.getMinutes() + 1) / 30) * 30, 23 * 60 + 30);
   return fromMinutes(m);
 }
-function taskEditor(id) {
-  const t = state.tasks.find((t) => t.id === id);
+function addChooser() {
   openEditor(
-    t ? 'Edit task' : 'Make room for something',
-    `<label for="task-name">Task</label><input id="task-name" name="name" required maxlength="100" value="${esc(t?.name)}" placeholder="Read 10 pages"><div class="fieldgrid"><div><label for="task-time">Time</label><input id="task-time" name="time" type="time" required value="${esc(t?.time || suggestedTime())}"></div><div><label for="task-date">One-time date</label><input id="task-date" name="date" type="date" value="${t?.date ?? day}"></div></div><p class="muted">For a repeating task, choose days below. Otherwise it’s just for the date above.</p><div class="days-pick">${weekdays.map((d, i) => `<label><input type="checkbox" name="days" value="${i}" ${t && !t.date && t.days.includes(i) ? 'checked' : ''}>${d.slice(0, 3)}</label>`).join('')}</div><label class="repeat-workout"><input type="checkbox" name="notify" ${t?.notify === false ? '' : 'checked'}> Remind me before this task</label><p class="muted">For timed tasks: 45 minutes before. Last-minute additions get a reminder in about 2 minutes.</p>${t ? '<button type="button" id="share-task" class="secondary">Share via Messages / WhatsApp ↗</button><button type="button" id="delete-task" class="text-button">Remove task</button>' : ''}`,
+    'What are you adding?',
+    `<div class="add-choice"><button type="button" class="secondary" id="add-kind-task"><strong>Task</strong><small>A to-do at a time. Read 10 pages, groceries.</small></button><button type="button" class="secondary" id="add-kind-event"><strong>Event</strong><small>Something with a start and an end. Meeting friends, a class.</small></button></div>`,
+    () => {},
+    null,
+  );
+  $('add-kind-task').onclick = () => taskEditor(null, 'task');
+  $('add-kind-event').onclick = () => taskEditor(null, 'event');
+}
+function taskEditor(id, newKind = 'task') {
+  const t = state.tasks.find((t) => t.id === id),
+    kind = t ? taskKind(t) : newKind,
+    isEvent = kind === 'event',
+    word = isEvent ? 'event' : 'task',
+    startTime = t?.time || suggestedTime(),
+    endTime = fromMinutes(
+      Math.min(toMinutes(startTime) + (t ? eventDuration(t) : 60), 23 * 60 + 59),
+    );
+  openEditor(
+    t ? `Edit ${word}` : isEvent ? 'Add an event' : 'Make room for something',
+    `<label for="task-name">${isEvent ? 'Event' : 'Task'}</label><input id="task-name" name="name" required maxlength="100" value="${esc(t?.name)}" placeholder="${isEvent ? 'Dinner with Eitan' : 'Read 10 pages'}"><div class="fieldgrid"><div><label for="task-time">${isEvent ? 'Starts' : 'Time'}</label><input id="task-time" name="time" type="time" required value="${esc(startTime)}"></div>${isEvent ? `<div><label for="task-end">Ends</label><input id="task-end" name="end" type="time" required value="${esc(endTime)}"></div></div><div class="fieldgrid">` : ''}<div><label for="task-date">One-time date</label><input id="task-date" name="date" type="date" value="${t?.date ?? day}"></div></div><p class="muted">For a repeating task, choose days below. Otherwise it’s just for the date above.</p><div class="days-pick">${weekdays.map((d, i) => `<label><input type="checkbox" name="days" value="${i}" ${t && !t.date && t.days.includes(i) ? 'checked' : ''}>${d.slice(0, 3)}</label>`).join('')}</div><label class="repeat-workout"><input type="checkbox" name="notify" ${t?.notify === false ? '' : 'checked'}> Remind me before this task</label><p class="muted">For timed tasks: 45 minutes before. Last-minute additions get a reminder in about 2 minutes.</p>${t ? '<button type="button" id="share-task" class="secondary">Share via Messages / WhatsApp ↗</button><button type="button" id="delete-task" class="text-button">Remove task</button>' : ''}`,
     (form) => {
       const days = form.getAll('days').map(Number),
         task = {
           ...t,
           id: t?.id ?? uid(),
+          kind,
+          ...(isEvent
+            ? { duration: toMinutes(form.get('end')) - toMinutes(form.get('time')) }
+            : {}),
           name: form.get('name').trim(),
           time: form.get('time'),
           days,
@@ -629,7 +656,8 @@ function taskEditor(id) {
               : (t.reminderAddedAt ?? 0),
         };
       if (!task.name || (!days.length && !task.date))
-        throw new Error('Give your task a name and a date or repeat days.');
+        throw new Error(`Give your ${word} a name and a date or repeat days.`);
+      if (isEvent && !(task.duration > 0)) throw new Error('The event has to end after it starts.');
       state.tasks = t ? state.tasks.map((x) => (x.id === t.id ? task : x)) : [...state.tasks, task];
     },
   );
@@ -664,7 +692,7 @@ function taskEditor(id) {
       await persist();
       $('editor').close();
       render();
-      toast('Task removed.', async () => {
+      toast(isEvent ? 'Event removed.' : 'Task removed.', async () => {
         if (!state.tasks.some((x) => x.id === removed.id)) state.tasks.push(removed);
         await persist();
         keepScroll();
@@ -1413,7 +1441,7 @@ function bind() {
     render();
   });
   on('add-day-workout', addDayWorkout);
-  on('add-task', () => taskEditor());
+  on('add-task', () => addChooser());
   document
     .querySelectorAll('[data-edit-task]')
     .forEach((b) => (b.onclick = () => taskEditor(b.dataset.editTask)));
