@@ -1447,6 +1447,9 @@ body:has(dialog[open]) {
   --blue: var(--c-a4c2df);
   --panel: var(--c-17273b);
   --line: var(--c-304052);
+  --text: var(--c-f0eadb);
+  --bg: var(--c-122033);
+  --now: var(--c-f0b9be);
 }
 body {
   background: var(--c-122033);
@@ -2893,4 +2896,184 @@ textarea:focus-visible {
   height: 28px;
   border-radius: 50%;
   border: 1px solid var(--line);
+}
+
+/* ---- Today as an hour-by-hour timeline ---- */
+.planner-bar {
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.planner-bar .pill {
+  display: flex;
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 4px;
+}
+.planner-bar .pill button {
+  background: none;
+  border: 0;
+  color: var(--text);
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.planner-bar #add-task {
+  font-size: 22px;
+}
+.day-summary {
+  text-align: center;
+  padding: 10px 0 6px;
+  border-bottom: 1px solid var(--line);
+}
+.day-summary p {
+  margin: 0;
+}
+.day-summary .accent,
+.needs-time .accent {
+  color: var(--blue);
+}
+.needs-time {
+  width: 100%;
+  margin-top: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 14px;
+  background: none;
+  color: var(--text);
+  border: 1px dashed var(--blue);
+  border-radius: 14px;
+}
+.timeline {
+  --gutter: 56px;
+  margin-top: 12px;
+  max-height: 62vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-bottom: 1px solid var(--line);
+}
+.timeline-grid {
+  position: relative;
+}
+.hour {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--line);
+  margin-left: var(--gutter);
+}
+.hour span {
+  position: absolute;
+  left: calc(-1 * var(--gutter));
+  width: calc(var(--gutter) - 10px);
+  text-align: right;
+  top: -9px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.now-line {
+  position: absolute;
+  left: calc(var(--gutter) - 5px);
+  right: 0;
+  border-top: 2px solid var(--now);
+  z-index: 2;
+}
+.now-line::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: -6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--now);
+}
+.slot {
+  position: absolute;
+  margin-top: 2px;
+  border-radius: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  overflow: hidden;
+  z-index: 1;
+}
+.slot-task {
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 0 4px 0 2px;
+  font-size: 14px;
+}
+.slot-task .grow {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.slot-task small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.slot-task .check-hit {
+  min-width: 40px;
+}
+.slot-workout {
+  background: var(--blue);
+  color: var(--bg);
+}
+.slot-workout .slot-open {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  color: inherit;
+  padding: 6px 10px;
+}
+.slot-workout .slot-open strong {
+  display: block;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 400;
+  font-size: 17px;
+}
+.slot-workout .slot-open small {
+  font-size: 12px;
+}
+.slot-workout .text-button {
+  color: inherit;
+  min-width: 40px;
+  min-height: 34px;
+}
+.slot.is-done {
+  opacity: 0.6;
+}
+.slot-task.is-done .grow {
+  text-decoration: line-through;
+}
+.schedule-activity input[type='time'] {
+  width: 104px;
+  flex: none;
+}
+
+.slot-workout.short .slot-open {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-top: 8px;
+}
+.slot-workout.short .slot-open strong {
+  display: inline;
+  font-size: 15px;
+}
+.day-summary .schedule-caption {
+  text-align: center;
+  margin-top: 2px;
 }

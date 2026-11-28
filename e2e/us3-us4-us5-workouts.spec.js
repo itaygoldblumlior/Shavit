@@ -57,7 +57,7 @@ test('US-3 + US-5: finishing a workout saves it, starts the streak and shows las
   await logEverySet(page);
   await finish.click();
   await expect(toast(page)).toContainText('Workout saved');
-  await expect(page.getByText('COMPLETED ✓')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'View Upper →' })).toBeVisible();
 
   // US-5: progress shows the logged workout and a 1-day streak.
   await goTo(page, 'progress');
