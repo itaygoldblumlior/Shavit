@@ -182,3 +182,16 @@ test('restored calendar-origin tasks relink rather than importing duplicates', a
   await reconcileCalendar(s, d, today);
   assert.equal(s.tasks.length, 1);
 });
+
+test('dates sent to the iPhone calendar have whole seconds (iOS rejects ".000Z")', async () => {
+  const sent = [];
+  const device = { ...fake() };
+  device.calendarSnapshot = async (args) => {
+    sent.push(args.start, args.end);
+    return { events: [] };
+  };
+  await reconcileCalendar(fixture(), device, today);
+  const item = eventDates(today, '16:00');
+  sent.push(item.start, item.end);
+  for (const s of sent) assert.match(s, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+});

@@ -1,6 +1,7 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { dateKey, shiftDate } from './helper-model.js';
 import {
+  isoSeconds,
   localCalendarItems,
   eventFingerprint,
   eventKey,
@@ -15,8 +16,8 @@ export async function reconcileCalendar(state, device = Device, today = dateKey(
   if (!config?.enabled) return false;
   const from = shiftDate(today, -30),
     to = shiftDate(today, 91),
-    start = new Date(from + 'T00:00:00').toISOString(),
-    end = new Date(to + 'T00:00:00').toISOString();
+    start = isoSeconds(new Date(from + 'T00:00:00')),
+    end = isoSeconds(new Date(to + 'T00:00:00'));
   const result = await device.calendarSnapshot({ calendarId: config.id, start, end });
   if (!Array.isArray(result.events))
     throw new Error('Calendar did not return a complete event list.');
