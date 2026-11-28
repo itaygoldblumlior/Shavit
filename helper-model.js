@@ -193,6 +193,16 @@ export function startPlanToday(state, template, today = dateKey()) {
   addWorkoutToDay(state, today, activity, false);
   return activity;
 }
+// The fire next to Shavit's face: burns once today's workouts are logged.
+// On a day with no workouts it burns while the streak is alive.
+export function fireState(state, today = dateKey()) {
+  const streak = streakStats(state, today).current,
+    workouts = activitiesOn(state, today).filter((a) => a.type === 'lift' || a.type === 'run'),
+    lit = workouts.length
+      ? workouts.every((a) => state.sessions[sessionKey(today, a.id)]?.completed)
+      : streak > 0;
+  return { streak, lit };
+}
 export const toMinutes = (time) =>
   /^([01]\d|2[0-3]):[0-5]\d$/.test(time ?? '')
     ? Number(time.slice(0, 2)) * 60 + Number(time.slice(3))

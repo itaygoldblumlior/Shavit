@@ -24,6 +24,7 @@ import {
   lastResult,
   moveExercise,
   startPlanToday,
+  fireState,
   lastDone,
   taskKind,
   eventDuration,
@@ -101,6 +102,11 @@ let state,
   saveStatus = 'Saved on this device',
   recapAnchor = dateKey();
 const face = `<svg class="face" aria-label="Shavit’s smiling face" role="img" viewBox="0 0 100 100"><path d="M79 49c2 23-12 34-32 32S18 69 19 48 32 18 51 19s29 12 28 30Z" stroke="currentColor" stroke-width="4" fill="none"/><path d="m37 41 1 5m24-6 1 5M35 59q16 16 30-1" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round"/></svg>`;
+const flame = `<svg viewBox="0 0 24 24" aria-hidden="true"><path class="flame-outer" d="M12 2.5c.6 3.2 3.4 4.9 4.9 7.6 1.9 3.4.6 8.4-3.6 9.6-4.3 1.3-8.6-1.4-8.6-5.9 0-2.6 1.4-4.2 2.6-5.4.2 1.9 1 3 2.2 3.4-.6-3.6.5-6.7 2.5-9.3Z"/><path class="flame-inner" d="M12.2 12.2c1.6 1.6 2.6 3 2.2 4.8-.4 1.6-1.7 2.4-3 2.2-1.5-.2-2.4-1.4-2.2-2.9.1-1.1.8-1.8 1.5-2.4.1.8.5 1.3 1 1.5-.1-1.2 0-2.3.5-3.2Z"/></svg>`;
+function fireBadge() {
+  const { streak, lit } = fireState(state, dateKey());
+  return `<button class="fire ${lit ? 'lit' : ''}" id="streak-fire" aria-label="${streak}-day streak${lit ? ', today is logged' : ', log today’s workout to light it'}. Open progress.">${flame}<span>${streak}</span></button>`;
+}
 const fmt = (key) => localDate(key).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 const plan = (key) =>
   activitiesOn(state, key)
@@ -337,7 +343,7 @@ function render() {
         : view === 'plans'
           ? '<h1>Workouts</h1>'
           : `<h1>Your space</h1><span class="subtle">Small steps. Kept promises.</span>`
-    }</div>${face}</header>${
+    }</div><div class="head-right">${fireBadge()}${face}</div></header>${
       view === 'today'
         ? `<div class="datebar planner-bar"><div class="pill"><button id="prev-week" aria-label="Previous week">‹</button><button id="choose-date" aria-label="Choose a date">${localDate(day).toLocaleDateString('en-GB', { month: 'long' })}</button><button id="next-week" aria-label="Next week">›</button></div><div class="pill"><button id="today">${today ? 'Today' : 'Back to today'}</button>${sessionMode ? '' : '<button id="add-task" aria-label="Add a task or event">＋</button>'}</div></div><div class="week">${weekdays
             .map((name, i) => {
@@ -397,7 +403,7 @@ function todayView(stats) {
     ).length;
     return `<div class="slot slot-workout ${session?.completed ? 'is-done' : ''} ${i.end - i.start < 60 ? 'short' : ''}" style="${style}"><button class="slot-open" data-open-activity="${esc(i.id)}" aria-label="${session?.completed ? 'View' : 'Open'} ${esc(i.name)} →"><strong>${esc(i.name)}${session?.completed ? ' ✓' : ''}</strong><small>${esc(i.time)} – ${fromMinutes(i.end % 1440)} · ${i.type === 'run' ? 'Run' : count + ' exercises'}</small></button><button class="text-button" data-time-activity="${esc(i.id)}" aria-label="Time for ${esc(i.name)}">⋯</button></div>`;
   };
-  return `${stepsView()}<div class="day-summary"><p><strong>${progress.completed}</strong> of ${progress.total} done${stats.current ? ` · <span class="accent">✦ ${stats.current}-day streak</span>` : ''}</p><p class="schedule-caption">${progress.total ? (progress.left ? 'One thing at a time. You’ve got this.' : 'Everything planned, done. Nice work.') : 'A clear day. Tap ＋ to plan something.'}</p></div>${
+  return `${stepsView()}${
     untimed.length
       ? `<button class="needs-time" id="place-times"><span>${untimed.length} ${untimed.length === 1 ? 'item needs' : 'items need'} a time</span><span class="accent">Place ${untimed.length === 1 ? 'it' : 'them'} →</span></button>`
       : ''
@@ -466,17 +472,26 @@ function fitTimeline() {
 }
 window.addEventListener('resize', () => fitTimeline());
 function scrollTimeline() {
-  fitTimeline();
-  // Safari can still move things after the first layout (fonts, safe areas): measure again.
-  requestAnimationFrame(() => requestAnimationFrame(fitTimeline));
-  document.fonts?.ready.then(fitTimeline).catch(() => {});
   const box = $('timeline');
-  if (!box || box.dataset.scrolled) return;
   const { timed } = timelineFor(state, day),
     n = new Date(),
     target = day === dateKey() ? n.getHours() * 60 + n.getMinutes() : (timed[0]?.start ?? 8 * 60);
-  box.scrollTop = Math.max(0, (target / 60 - 1) * HOUR);
-  box.dataset.scrolled = '1';
+  // iOS sizes the box late (fonts, safe areas), and scrollTop set before that is clamped to 0.
+  // So size and scroll again after layout settles, until the person scrolls themselves.
+  const settle = () => {
+    fitTimeline();
+    if (box && !box.dataset.touched) box.scrollTop = Math.max(0, (target / 60 - 1) * HOUR);
+  };
+  if (box) {
+    const mark = () => (box.dataset.touched = '1');
+    box.addEventListener('pointerdown', mark, { once: true });
+    box.addEventListener('wheel', mark, { once: true, passive: true });
+    box.addEventListener('touchstart', mark, { once: true, passive: true });
+  }
+  settle();
+  requestAnimationFrame(() => requestAnimationFrame(settle));
+  setTimeout(settle, 300);
+  document.fonts?.ready.then(settle).catch(() => {});
 }
 function workoutView() {
   const s = activeSession();
@@ -1725,6 +1740,14 @@ function bind() {
         keepScroll();
       }),
   );
+  on('streak-fire', () => {
+    view = 'plans';
+    workoutTab = 'progress';
+    openPlanId = null;
+    sessionMode = false;
+    render();
+    window.scrollTo(0, 0);
+  });
   on('add-plan', () => planEditor());
   on('notes-plan', () => $('import-notes').click());
   document.querySelectorAll('[data-plan]').forEach(
