@@ -766,3 +766,16 @@ test('plan screen: last result, reorder and start now', async () => {
   assert.equal(startPlanToday(state, t, today).id, first.id); // no duplicate
   assert.equal(state.schedule[6].length, 0); // weekly schedule untouched
 });
+
+test('streak fire: burns once today’s workout is logged', async () => {
+  const { fireState, emptyState, sessionKey } = await import('../helper-model.js');
+  const state = emptyState();
+  state.start = '2026-11-22';
+  state.schedule[0] = [{ id: 'u', name: 'Upper', type: 'lift' }]; // Sundays
+  assert.deepEqual(fireState(state, '2026-11-29'), { streak: 0, lit: false });
+  state.sessions[sessionKey('2026-11-29', 'u')] = { date: '2026-11-29', completed: true };
+  assert.equal(fireState(state, '2026-11-29').lit, true);
+  assert.equal(fireState(state, '2026-11-29').streak >= 1, true);
+  // A rest day with no streak: still.
+  assert.equal(fireState(emptyState(), '2026-11-30').lit, false);
+});
