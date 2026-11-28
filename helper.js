@@ -457,7 +457,7 @@ function fitTimeline() {
   // innerHeight can include space the tab bar and safe area already cover.
   const top = box.getBoundingClientRect().top + window.scrollY,
     bottom = nav ? nav.getBoundingClientRect().top : window.innerHeight;
-  box.style.height = Math.max(320, bottom - top - 8) + 'px';
+  box.style.height = Math.max(180, bottom - top - 8) + 'px';
 }
 window.addEventListener('resize', () => fitTimeline());
 function scrollTimeline() {
