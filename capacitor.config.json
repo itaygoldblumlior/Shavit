@@ -12,6 +12,15 @@
   "plugins": {
     "LocalNotifications": {
       "presentationOptions": ["banner", "sound", "list"]
+    },
+    "SplashScreen": {
+      "launchAutoHide": false,
+      "backgroundColor": "#0c1526",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "overlaysWebView": true,
+      "style": "DARK"
     }
   }
 }
