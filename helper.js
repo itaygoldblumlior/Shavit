@@ -16,6 +16,8 @@ import {
   hideSplash,
   enableEdgeSwipeBack,
 } from './native.js';
+// The themed launch screen in index.html is already painted: drop the native one.
+hideSplash();
 import { heroView } from './hero-view.js';
 import {
   taskKind,
@@ -278,9 +280,23 @@ function navIcon(id) {
   };
   return `<svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="${paths[id]}"/></svg>`;
 }
+// The launch screen (index.html) shows Shavit's smile in the theme colours,
+// then fades away once the first screen is ready.
+function dismissLaunch() {
+  const launch = $('launch');
+  if (!launch || launch.dataset.leaving) return;
+  launch.dataset.leaving = '1';
+  setTimeout(() => {
+    launch.classList.add('gone');
+    setTimeout(() => launch.remove(), 400);
+  }, 350);
+}
 function applyTheme() {
   const theme = themeOf(state);
   document.documentElement.dataset.theme = theme;
+  try {
+    localStorage.setItem('shavit-theme', theme);
+  } catch {}
   document.documentElement.classList.toggle('app', isApp);
   nativeTheme(theme);
   const colour = { midnight: '#0c1526', paper: '#f5efe3', coach: '#0d0e10' }[theme];
@@ -288,6 +304,7 @@ function applyTheme() {
 }
 function render() {
   applyTheme();
+  dismissLaunch();
   disposeGraph();
   if (!state.onboarded || new URLSearchParams(location.search).has('welcome')) {
     $('app').innerHTML = heroView(face, state.onboarded);
@@ -1679,6 +1696,7 @@ try {
     syncActivityReminders(state).catch(() => {});
   }
 } catch (error) {
+  dismissLaunch();
   $('app').innerHTML =
     '<main><h1>Let’s keep your data safe.</h1><p>Shavit could not open your saved data. Close and reopen the app. Nothing has been reset.</p></main>';
 }
@@ -1694,7 +1712,6 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-hideSplash();
 enableEdgeSwipeBack();
 if (!isNative && 'serviceWorker' in navigator && import.meta.env.PROD)
   navigator.serviceWorker.register('/sw.js').catch(() => {});

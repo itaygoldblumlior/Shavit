@@ -3164,3 +3164,43 @@ html.app .slot:active {
   transform: scale(0.98);
   transition: transform 80ms ease-out;
 }
+
+/* Launch screen: Shavit's smile in the theme colours, then a fade into the app */
+#launch {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  pointer-events: none;
+  transition: opacity 300ms ease;
+}
+#launch svg {
+  width: 96px;
+  height: 96px;
+  fill: none;
+  stroke: var(--blue);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  animation: launch-hello 900ms ease-out both;
+}
+#launch.gone {
+  opacity: 0;
+}
+@keyframes launch-hello {
+  from {
+    transform: scale(0.85) rotate(-8deg);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) rotate(-4deg);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #launch svg {
+    animation: none;
+  }
+}
