@@ -16,7 +16,8 @@
     "SplashScreen": {
       "launchAutoHide": false,
       "backgroundColor": "#0c1526",
-      "showSpinner": false
+      "showSpinner": false,
+      "launchFadeOutDuration": 0
     },
     "StatusBar": {
       "overlaysWebView": true,
