@@ -1525,7 +1525,7 @@ async function exportWorkoutPhoto() {
   try {
     const session = activeSession();
     if (!session) return;
-    const photos = renderWorkoutPhotos(structuredClone(session));
+    const photos = renderWorkoutPhotos(structuredClone(session), themeOf(state));
     const dialog = document.createElement('dialog');
     dialog.className = 'photo-export';
     dialog.innerHTML = `<div class="dialog-head"><h2>Your workout photo</h2><button type="button" aria-label="Close image preview" class="icon">×</button></div><p class="muted">${photos.length > 1 ? `${photos.length} images keep all your sets readable.` : 'Ready to keep or share.'} ${session.completed ? '' : 'Unfinished sets are labelled.'}</p><div class="photo-pages">${photos.map((src, i) => `<img src="${src}" alt="Workout sets, image ${i + 1}">`).join('')}</div><button type="button" class="primary" data-photo-share>${isNative ? 'Save / share image' : 'Download image'}${photos.length > 1 ? 's' : ''} ↗</button><p class="error" role="alert"></p>`;
