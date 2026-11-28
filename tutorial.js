@@ -27,7 +27,7 @@ export function showTutorial(onDone) {
     ],
     [
       'Little wins, safely kept.',
-      'Progress shows your history, weekly recap and streak. Workouts → Exercise progress shows your weight and rep graphs.',
+      'Workouts → Progress shows your weekly recap, streak and weight and rep graphs. Workouts → History lists every finished workout.',
       'More → Export backup',
       'Everything saves in this browser. There is no account or automatic sync between devices. Export backups regularly; private browsing or clearing site data can lose your records.',
     ],
