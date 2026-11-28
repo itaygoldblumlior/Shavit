@@ -23,7 +23,7 @@ test('US-4: a pasted note becomes a plan, and the first set is a warm-up', async
 
 test('US-4: a note with no sets is rejected with a clear message', async ({ page }) => {
   await goTo(page, 'plans');
-  await page.getByRole('button', { name: '＋ Create plan' }).click();
+  await page.getByRole('button', { name: '＋ Build a plan' }).click();
   await page.locator('#plan-name').fill('Mystery');
   await page.locator('.paste-plan summary').click();
   await page.locator('#plan-note').fill('Do some push-ups, maybe');

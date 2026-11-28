@@ -689,3 +689,23 @@ test('workout photo uses the chosen theme colours, exercise names in the accent'
     ],
   );
 });
+
+test('workouts tab: which days a plan is scheduled, and when it was last done', async () => {
+  const { planDays, lastDone, emptyState } = await import('../helper-model.js');
+  const state = emptyState();
+  state.schedule[2] = [{ id: 'a', name: 'Push', type: 'lift' }];
+  state.schedule[6] = [
+    { id: 'b', name: 'Legs', type: 'lift' },
+    { id: 'c', name: 'Run', type: 'run' },
+  ];
+  state.schedule[4] = [{ id: 'd', name: 'Push', type: 'lift' }];
+  assert.deepEqual(planDays(state, 'Push'), [2, 4]);
+  assert.deepEqual(planDays(state, 'Pull'), []);
+  state.sessions = {
+    x: { plan: 'Legs', date: '2026-11-21', completed: true },
+    y: { plan: 'Legs', date: '2026-11-28', completed: true },
+    z: { plan: 'Legs', date: '2026-11-30', completed: false },
+  };
+  assert.equal(lastDone(state, 'Legs'), '2026-11-28');
+  assert.equal(lastDone(state, 'Push'), null);
+});

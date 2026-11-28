@@ -20,6 +20,8 @@ import {
 hideSplash();
 import { heroView } from './hero-view.js';
 import {
+  planDays,
+  lastDone,
   taskKind,
   eventDuration,
   timelineFor,
@@ -79,7 +81,7 @@ let deviceTimer,
   stepCount = null,
   stepUpdated = '',
   healthEnabled = false;
-let workoutTab = 'routines',
+let workoutTab = 'plans',
   graphRange = 'month',
   graphMetric = 'kg',
   graphExercise = '',
@@ -325,10 +327,12 @@ function render() {
     stats = streakStats(state),
     start = shiftDate(day, -localDate(day).getDay());
   $('app').innerHTML =
-    `<main class="${sessionMode ? 'logging-mode' : ''}"><header class="top ${view === 'today' ? 'compact' : ''}"><div>${
+    `<main class="${sessionMode ? 'logging-mode' : ''}"><header class="top ${view === 'today' || view === 'plans' ? 'compact' : ''}"><div>${
       view === 'today'
         ? `<h1>${today ? 'Today' : weekdays[localDate(day).getDay()]} <span class="h1-date">· ${localDate(day).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</span></h1>`
-        : `<h1>${view === 'plans' ? 'Your workouts' : view === 'progress' ? 'Look at you go.' : 'Your space'}</h1><span class="subtle">Small steps. Kept promises.</span>`
+        : view === 'plans'
+          ? '<h1>Workouts</h1>'
+          : `<h1>${view === 'progress' ? 'Look at you go.' : 'Your space'}</h1><span class="subtle">Small steps. Kept promises.</span>`
     }</div>${face}</header>${
       view === 'today'
         ? `<div class="datebar planner-bar"><div class="pill"><button id="prev-week" aria-label="Previous week">‹</button><button id="choose-date" aria-label="Choose a date">${localDate(day).toLocaleDateString('en-GB', { month: 'long' })}</button><button id="next-week" aria-label="Next week">›</button></div><div class="pill"><button id="today">${today ? 'Today' : 'Back to today'}</button>${sessionMode ? '' : '<button id="add-task" aria-label="Add a task or event">＋</button>'}</div></div><div class="week">${weekdays
@@ -583,25 +587,83 @@ function plansView() {
   const points = exerciseProgress(state, graphExercise, graphRange),
     last = points.at(-1),
     first = points[0];
-  return `<div class="workout-tabs" role="group" aria-label="Workout view"><button data-workout-tab="routines" aria-pressed="${workoutTab === 'routines'}">Your routines</button><button data-workout-tab="chart" aria-pressed="${workoutTab === 'chart'}">Exercise progress</button></div>${
-    workoutTab === 'routines'
+  return `<div class="segmented" role="tablist" aria-label="Workouts sections">${[
+    ['plans', 'Plans'],
+    ['history', 'History'],
+    ['progress', 'Progress'],
+  ]
+    .map(
+      ([key, name]) =>
+        `<button role="tab" data-workout-tab="${key}" aria-selected="${workoutTab === key}">${name}</button>`,
+    )
+    .join('')}</div>${
+    workoutTab === 'plans'
       ? routinesView()
-      : `<label for="graph-exercise">Exercise</label><select id="graph-exercise">${names.map((n) => option(n, graphExercise)).join('')}</select><div class="graph-ranges" role="group" aria-label="Time range">${[
-          ['week', 'Week'],
-          ['month', 'Month'],
-          ['all', 'All time'],
-        ]
-          .map(
-            ([key, name]) =>
-              `<button data-graph-range="${key}" aria-pressed="${graphRange === key}">${name}</button>`,
-          )
-          .join(
-            '',
-          )}</div><div class="graph-metrics" role="group" aria-label="Progress measure"><button data-graph-metric="kg" aria-pressed="${graphMetric === 'kg'}">Weight</button><button data-graph-metric="reps" aria-pressed="${graphMetric === 'reps'}">Reps</button></div>${last ? `<p class="graph-latest">${last[graphMetric]} <small>${graphMetric === 'kg' ? 'kg' : 'reps'} · latest</small></p><p class="muted">${last[graphMetric] - first[graphMetric] >= 0 ? '+' : ''}${last[graphMetric] - first[graphMetric]} ${graphMetric === 'kg' ? 'kg' : 'reps'} since ${fmt(first.date)}</p><p class="muted">${graphMetric === 'kg' ? 'Heaviest working set per session' : 'Reps in the heaviest working set'} · warm-ups excluded</p><div id="workout-graph"><div class="workout-plot"><svg role="img" aria-label="Exercise progress"></svg><button data-chart-tap aria-label="Tap the graph or use arrow keys to inspect a session"></button></div><div class="graph-selection"><button data-point-prev aria-label="Previous session">←</button><span data-chart-detail aria-live="polite"></span><button data-point-next aria-label="Next session">→</button></div></div><p class="graph-note">Look at you showing up.</p>` : '<p class="empty">No completed working sets in this period. Log a workout or choose another range to see your progress.</p>'}`
+      : workoutTab === 'history'
+        ? historyView()
+        : `<label for="graph-exercise">Exercise</label><select id="graph-exercise">${names.map((n) => option(n, graphExercise)).join('')}</select><div class="graph-ranges" role="group" aria-label="Time range">${[
+            ['week', 'Week'],
+            ['month', 'Month'],
+            ['all', 'All time'],
+          ]
+            .map(
+              ([key, name]) =>
+                `<button data-graph-range="${key}" aria-pressed="${graphRange === key}">${name}</button>`,
+            )
+            .join(
+              '',
+            )}</div><div class="graph-metrics" role="group" aria-label="Progress measure"><button data-graph-metric="kg" aria-pressed="${graphMetric === 'kg'}">Weight</button><button data-graph-metric="reps" aria-pressed="${graphMetric === 'reps'}">Reps</button></div>${last ? `<p class="graph-latest">${last[graphMetric]} <small>${graphMetric === 'kg' ? 'kg' : 'reps'} · latest</small></p><p class="muted">${last[graphMetric] - first[graphMetric] >= 0 ? '+' : ''}${last[graphMetric] - first[graphMetric]} ${graphMetric === 'kg' ? 'kg' : 'reps'} since ${fmt(first.date)}</p><p class="muted">${graphMetric === 'kg' ? 'Heaviest working set per session' : 'Reps in the heaviest working set'} · warm-ups excluded</p><div id="workout-graph"><div class="workout-plot"><svg role="img" aria-label="Exercise progress"></svg><button data-chart-tap aria-label="Tap the graph or use arrow keys to inspect a session"></button></div><div class="graph-selection"><button data-point-prev aria-label="Previous session">←</button><span data-chart-detail aria-live="polite"></span><button data-point-next aria-label="Next session">→</button></div></div><p class="graph-note">Look at you showing up.</p>` : '<p class="empty">No completed working sets in this period. Log a workout or choose another range to see your progress.</p>'}`
   }`;
 }
+const shortDay = (d) => weekdays[d].slice(0, 3);
+function lastDoneLabel(date) {
+  if (!date) return 'not done yet';
+  const days = Math.round((localDate(dateKey()) - localDate(date)) / 864e5);
+  return days === 0 ? 'last: today ✓' : days === 1 ? 'last: yesterday' : `last: ${days} days ago`;
+}
 function routinesView() {
-  return `<p class="muted">Reusable routines, ready for your next session.</p><div class="plan-actions"><button class="primary" id="add-plan">＋ Create plan</button><button class="secondary" id="notes-plan">Import note</button></div>${state.templates.length ? '<label class="sr-only" for="plan-search">Search workout plans</label><input type="search" id="plan-search" placeholder="Find a plan or exercise…" autocomplete="off">' : ''}${state.templates.map((t) => `<section class="card plan-card" data-plan-card data-search="${esc((t.name + ' ' + t.exercises.map((e) => e.name).join(' ')).toLowerCase())}"><div class="section-head" style="margin:0"><h2>${esc(t.name)}</h2><button class="text-button" data-plan="${esc(t.id)}" aria-label="Edit ${esc(t.name)} plan">Edit plan</button></div><p class="muted">${t.exercises.length} ${t.exercises.length === 1 ? 'exercise' : 'exercises'} · ${t.exercises.reduce((n, e) => n + e.sets.length, 0)} sets</p>${t.exercises.length ? `<details><summary>Exercises</summary>${t.exercises.map((e, index) => `<button class="plan-exercise" data-template-exercise="${esc(t.id)}" data-index="${index}"><span>${esc(e.name)}<small>${e.sets.length} sets · ${e.sets.filter((s) => s.kind === 'warmup').length} warm-up</small></span><span>↗</span></button>`).join('')}</details>` : '<p class="muted">Add your first exercise below. Choose sets and warm-ups as you go.</p>'}<button class="secondary" data-template-add="${esc(t.id)}">＋ Add exercise</button></section>`).join('') || '<p class="empty">Create a plan, add exercises, then use its name in your schedule.</p>'}<p id="no-plans-found" class="empty" hidden>No matching plans. Try another name.</p>`;
+  const plans = state.templates;
+  return `${
+    plans.length
+      ? '<label class="search-field"><span aria-hidden="true">⌕</span><span class="sr-only">Search workout plans</span><input type="search" id="plan-search" placeholder="Find a plan or exercise" autocomplete="off"></label>'
+      : ''
+  }<p class="list-label">YOUR PLANS · ${plans.length}</p>${
+    plans.length
+      ? `<div class="list">${plans
+          .map((t) => {
+            const days = planDays(state, t.name),
+              sets = t.exercises.reduce((n, e) => n + e.sets.length, 0);
+            return `<button class="list-row" data-plan-card data-plan="${esc(t.id)}" data-search="${esc((t.name + ' ' + t.exercises.map((e) => e.name).join(' ')).toLowerCase())}" aria-label="Edit ${esc(t.name)} plan"><span class="grow"><strong>${esc(t.name)}</strong><small>${t.exercises.length} ${t.exercises.length === 1 ? 'exercise' : 'exercises'} · ${sets} sets</small></span><span class="row-side"><b>${days.length ? days.map(shortDay).join(' · ') : 'Not scheduled'}</b><small>${lastDoneLabel(lastDone(state, t.name))}</small></span><span class="chev" aria-hidden="true">›</span></button>`;
+          })
+          .join(
+            '',
+          )}</div><p id="no-plans-found" class="empty" hidden>No matching plans. Try another name.</p>`
+      : '<p class="empty">No plans yet. Build one, or paste a workout from Notes.</p>'
+  }<p class="list-label">ADD A PLAN</p><div class="quick-add"><button class="secondary" id="add-plan">＋ Build a plan</button><button class="secondary" id="notes-plan">Import a note file</button></div>`;
+}
+function historyView() {
+  return `<div class="history-filters" role="group" aria-label="Filter history">${[
+    ['all', 'All'],
+    ['lift', 'Lifting'],
+    ['run', 'Runs'],
+  ]
+    .map(
+      ([key, label]) =>
+        `<button data-history-filter="${key}" aria-pressed="${historyFilter === key}">${label}</button>`,
+    )
+    .join('')}</div>${(() => {
+    const sessions = Object.values(state.sessions)
+      .filter((s) => s.completed && (historyFilter === 'all' || s.type === historyFilter))
+      .sort((a, b) => b.date.localeCompare(a.date));
+    return sessions.length
+      ? `<div class="list">${sessions
+          .map(
+            (s) =>
+              `<button class="list-row" data-history="${esc(sessionKey(s.date, s.activityId))}"><span class="grow"><strong>${esc(s.plan)}</strong><small>${fmt(s.date)} · ${s.type === 'run' ? 'Run ✓' : `${s.exercises.length} exercises · ${s.exercises.reduce((n, e) => n + e.sets.filter((x) => x.kind === 'working').length, 0)} working sets`}</small></span><span class="chev" aria-hidden="true">›</span></button>`,
+          )
+          .join('')}</div>`
+      : `<p class="empty">No ${historyFilter === 'all' ? 'workouts' : historyFilter === 'run' ? 'runs' : 'lifting sessions'} logged yet.</p>`;
+  })()}`;
 }
 function recapView() {
   const r = weeklyRecap(state, recapAnchor);
@@ -620,32 +682,7 @@ function progressView(stats) {
     )
     .join(
       '',
-    )}</div><p class="muted">Streaks count days with all scheduled activities completed from ${fmt(state.start)}. Rest days never break them. Today isn’t missed until the day ends.</p><div class="section-head"><h2>Your history</h2></div><div class="history-filters" role="group" aria-label="Filter history">${[
-    ['all', 'All'],
-    ['lift', 'Lifting'],
-    ['run', 'Runs'],
-  ]
-    .map(
-      ([key, label]) =>
-        `<button data-history-filter="${key}" aria-pressed="${historyFilter === key}">${label}</button>`,
-    )
-    .join('')}</div>${
-    Object.values(state.sessions)
-      .filter((s) => s.completed && (historyFilter === 'all' || s.type === historyFilter))
-      .sort((a, b) => b.date.localeCompare(a.date))
-      .map(
-        (s) =>
-          `<button class="card row" style="width:100%;text-align:left" data-history="${esc(sessionKey(s.date, s.activityId))}"><span class="time">${fmt(s.date)}</span><div class="grow"><b>${esc(s.plan)}</b><p class="muted">${s.type === 'run' ? 'Completed ✓' : `${s.exercises.length} exercises · ${s.exercises.reduce((n, e) => n + e.sets.filter((s) => s.kind === 'working').length, 0)} working sets`}</p></div><span>↗</span></button>`,
-      )
-      .join('') ||
-    '<p class="empty">No ' +
-      (historyFilter === 'all'
-        ? 'workouts'
-        : historyFilter === 'run'
-          ? 'runs'
-          : 'lifting sessions') +
-      ' logged here yet.</p>'
-  }`;
+    )}</div><p class="muted">Streaks count days with all scheduled activities completed from ${fmt(state.start)}. Rest days never break them. Today isn’t missed until the day ends.</p><p class="muted">Your past workouts are in Workouts → History.</p>`;
 }
 function settingsView() {
   return `${connectionsView()}<section class="card"><h2>Your rhythm</h2><p class="muted">Sunday-start weeks · weights in kg</p><button class="secondary" id="edit-schedule">Edit weekly schedule</button>${isNative ? `<button class="secondary" id="activity-reminders">${state.activityReminders === false ? 'Enable' : 'Turn off'} task & gym reminders</button><details class="quiet-details"><summary>When reminders arrive</summary><p class="muted">Tasks: 45 minutes before, or about 2 minutes after adding a last-minute task. Gym: 19:00 on lifting days if no training is completed. Open Shavit regularly to refresh reminders.</p></details><button class="secondary" id="reminder">${state.reminder ? 'Turn off' : 'Enable'} 9:00 AM reminder</button><p class="muted">${isNative ? 'A daily nudge, scheduled on your phone.' : 'Daily background reminders are available in the installed iPhone app.'}</p>` : '<p class="muted">Calendar sync and background reminders are available in the iPhone app. Browser plans save here automatically.</p>'}</section><section class="card"><h2>Your look</h2><p class="muted">Pick a theme. It changes on this device only.</p><div class="theme-picks" role="group" aria-label="Theme">${THEMES.map((t) => `<button class="secondary theme-pick" data-theme-pick="${t.id}" aria-pressed="${themeOf(state) === t.id}"><span class="theme-swatch theme-swatch-${t.id}" aria-hidden="true"></span><span>${t.name}<small>${t.note}</small></span></button>`).join('')}</div></section><section class="card"><h2>Only on your device.</h2><p class="muted">No account and no cloud sync. Keep a backup before changing phones or clearing browser data. Your website and installed app store data separately.</p><button class="secondary" id="export">Export backup</button><button class="secondary" id="import">Import backup / workout file</button></section><section class="card"><h2>Hey, I’m still Shavit.</h2><button id="tutorial" class="secondary">Show me the basics</button><button id="meet-helper" class="secondary">Meet Shavit</button><p class="muted">Your day, your training, your cool friend.</p><details class="patch-notes"><summary>What’s new · 15 November</summary><ul><li>The planner and workouts are back on the website, with a first-time tutorial.</li><li>A calmer workout screen, searchable exercise swaps and unfinished tasks shown first.</li><li>Exercise progress graphs in Workouts, with weight, reps and time-range views.</li><li>Optional main-calendar sync with deletion and conflict reviews.</li><li>Move a workout for one day; choose to combine or swap when the destination is busy.</li><li>Half reps, task sharing, and task / evening gym reminders.</li><li>Completed workouts update the weights and reps in your routine.</li><li>Runs are now a simple done button.</li><li>Saved exercises appear as quick choices when swapping.</li><li>Swap an exercise just for this day, or update your saved routine.</li><li>Export your workout as a Notes-style image, with Shavit’s smile.</li><li>Previous kg and reps beside each set, matched by warm-up or working set.</li><li>A weekly recap in Progress, with runs, lifts, tasks and a note from Shavit.</li><li>A fresh Midnight notebook look: warm text, softer blues and journal-style headings.</li><li>Build workout plans one exercise at a time.</li><li>Previous weights and reps fill your next session.</li><li>Quick calendar jump, plan search and history filters.</li><li>Easier run time entry and larger phone controls.</li><li>Weekly edits keep one-off workouts in place.</li></ul></details><a href="/privacy.html">Privacy</a> · <a href="/support.html">Help</a></section>`;

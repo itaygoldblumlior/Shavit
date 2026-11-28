@@ -3354,3 +3354,117 @@ html.app .slot:active {
 .day .dot {
   font-size: 8.5px;
 }
+
+/* ---- Workouts tab: segmented sections, compact lists ---- */
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+  padding: 3px;
+  margin: 6px 0 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.segmented button {
+  min-height: 36px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 14px;
+}
+.segmented button[aria-selected='true'] {
+  background: var(--blue);
+  color: var(--bg);
+}
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  min-height: 44px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--muted);
+}
+.search-field input {
+  flex: 1;
+  border: 0;
+  background: none;
+  min-height: 42px;
+  padding: 0;
+  outline: none;
+}
+.list-label {
+  margin: 16px 4px 6px;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+}
+.list {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 60px;
+  padding: 12px 14px;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  color: var(--text);
+}
+.list-row:last-child {
+  border-bottom: 0;
+}
+.list-row .grow {
+  flex: 1;
+  min-width: 0;
+}
+.list-row strong {
+  display: block;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 400;
+  font-size: 20px;
+}
+.list-row small {
+  color: var(--muted);
+  font-size: 13px;
+}
+.row-side {
+  text-align: right;
+  font-size: 12px;
+}
+.row-side b {
+  display: block;
+  color: var(--blue);
+  font-weight: 600;
+}
+.row-side small {
+  font-size: 11.5px;
+}
+.chev {
+  color: var(--muted);
+  font-size: 20px;
+}
+.quick-add {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.quick-add button {
+  min-height: 52px;
+}
+.list-row[hidden] {
+  display: none;
+}

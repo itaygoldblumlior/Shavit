@@ -151,6 +151,23 @@ export function tasksOn(state, key) {
 // A task is a to-do at a time; an event (meeting friends, a class) has a start and an end.
 export const taskKind = (t) => t.kind ?? (t.calendarOrigin && !t.calendarAllDay ? 'event' : 'task');
 export const eventDuration = (t) => t.duration ?? t.calendarDuration ?? 60;
+// ---- Workouts tab ----
+/** Weekdays (0 = Sunday) on which the weekly schedule has a lift with this plan's name. */
+export function planDays(state, name) {
+  return state.schedule
+    .map((list, day) => (list.some((a) => a.type === 'lift' && a.name === name) ? day : -1))
+    .filter((d) => d >= 0);
+}
+/** Date of the most recent completed session of this plan, or null. */
+export function lastDone(state, name) {
+  return (
+    Object.values(state.sessions)
+      .filter((s) => s.completed && s.plan === name)
+      .map((s) => s.date)
+      .sort()
+      .at(-1) ?? null
+  );
+}
 export const toMinutes = (time) =>
   /^([01]\d|2[0-3]):[0-5]\d$/.test(time ?? '')
     ? Number(time.slice(0, 2)) * 60 + Number(time.slice(3))
