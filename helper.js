@@ -460,6 +460,9 @@ function fitTimeline() {
 window.addEventListener('resize', () => fitTimeline());
 function scrollTimeline() {
   fitTimeline();
+  // Safari can still move things after the first layout (fonts, safe areas): measure again.
+  requestAnimationFrame(() => requestAnimationFrame(fitTimeline));
+  document.fonts?.ready.then(fitTimeline).catch(() => {});
   const box = $('timeline');
   if (!box || box.dataset.scrolled) return;
   const { timed } = timelineFor(state, day),

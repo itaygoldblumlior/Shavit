@@ -73,6 +73,9 @@ test('an event has a start and an end, and looks different from a task', async (
 });
 
 test('the timeline fills the screen down to the tabs', async ({ page }) => {
+  await page.evaluate(
+    () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))),
+  );
   const gap = await page.evaluate(() => {
     const box = document.getElementById('timeline').getBoundingClientRect(),
       nav = document.querySelector('.nav').getBoundingClientRect();
