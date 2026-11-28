@@ -7,6 +7,15 @@ import {
 } from './device-connections.js';
 import { exerciseProgress, progressExerciseNames, mountWorkoutGraph } from './workout-progress.js';
 import { renderWorkoutPhotos } from './workout-photo.js';
+import {
+  isApp,
+  tapFeel,
+  successFeel,
+  selectFeel,
+  nativeTheme,
+  hideSplash,
+  enableEdgeSwipeBack,
+} from './native.js';
 import { heroView } from './hero-view.js';
 import {
   taskKind,
@@ -272,6 +281,8 @@ function navIcon(id) {
 function applyTheme() {
   const theme = themeOf(state);
   document.documentElement.dataset.theme = theme;
+  document.documentElement.classList.toggle('app', isApp);
+  nativeTheme(theme);
   const colour = { midnight: '#0c1526', paper: '#f5efe3', coach: '#0d0e10' }[theme];
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', colour);
 }
@@ -1329,6 +1340,7 @@ function bind() {
     (input) =>
       (input.onchange = async () => {
         const [i, j] = input.dataset.done.split(',');
+        if (input.checked) tapFeel();
         captureSetInputs();
         const set = activeSession().exercises[i].sets[j];
         const row = input.closest('.set-row'),
@@ -1418,6 +1430,7 @@ function bind() {
     toast('Run done. Nice one.');
   });
   on('finish-workout', async () => {
+    successFeel();
     const invalid = captureSetInputs();
     if (invalid) {
       invalid.reportValidity();
@@ -1449,6 +1462,7 @@ function bind() {
     (input) =>
       (input.onchange = async () => {
         const t = state.tasks.find((t) => t.id === input.dataset.task);
+        if (input.checked) tapFeel();
         t.done = input.checked ? [...new Set([...t.done, day])] : t.done.filter((k) => k !== day);
         await persist();
         keepScroll();
@@ -1504,6 +1518,7 @@ function bind() {
   document.querySelectorAll('[data-theme-pick]').forEach(
     (b) =>
       (b.onclick = async () => {
+        selectFeel();
         state.theme = b.dataset.themePick;
         await persist();
         render();
@@ -1679,6 +1694,8 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
+hideSplash();
+enableEdgeSwipeBack();
 if (!isNative && 'serviceWorker' in navigator && import.meta.env.PROD)
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 
