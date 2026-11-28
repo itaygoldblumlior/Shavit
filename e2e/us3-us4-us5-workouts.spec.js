@@ -60,7 +60,8 @@ test('US-3 + US-5: finishing a workout saves it, starts the streak and shows las
   await expect(page.getByRole('button', { name: 'View Upper →' })).toBeVisible();
 
   // US-5: progress shows the logged workout and a 1-day streak.
-  await goTo(page, 'progress');
+  await goTo(page, 'plans');
+  await page.getByRole('tab', { name: 'Progress' }).click();
   const stat = (label) => page.locator('.stats .card', { hasText: label }).locator('strong');
   await expect(stat('Workouts logged')).toHaveText('1');
   await expect(stat('Training-day streak')).toHaveText('1');

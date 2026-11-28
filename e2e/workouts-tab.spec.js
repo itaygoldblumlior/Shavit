@@ -47,3 +47,11 @@ test('search filters the plan list', async ({ page }) => {
   await expect(page.locator('[data-plan-card]:visible')).toHaveCount(1);
   await expect(page.locator('[data-plan-card]:visible')).toContainText('Legs');
 });
+
+test('the tab bar has three tabs; streaks live in Workouts → Progress', async ({ page }) => {
+  await expect(page.locator('nav [data-view]')).toHaveCount(3);
+  await expect(page.locator('nav [data-view="progress"]')).toHaveCount(0);
+  await goTo(page, 'plans');
+  await page.getByRole('tab', { name: 'Progress' }).click();
+  await expect(page.locator('.stats .card', { hasText: 'Training-day streak' })).toBeVisible();
+});
