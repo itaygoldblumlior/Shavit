@@ -71,3 +71,13 @@ test('an event has a start and an end, and looks different from a task', async (
   await page.locator('#editor-save').click();
   await expect(page.locator('#editor-error')).toContainText('end after it starts');
 });
+
+test('the timeline fills the screen down to the tabs', async ({ page }) => {
+  const gap = await page.evaluate(() => {
+    const box = document.getElementById('timeline').getBoundingClientRect(),
+      nav = document.querySelector('.nav').getBoundingClientRect();
+    return nav.top - box.bottom;
+  });
+  expect(gap).toBeGreaterThanOrEqual(0);
+  expect(gap).toBeLessThan(40);
+});
